@@ -13,14 +13,5 @@ namespace Sklad.Domain.Interfaces
 
         Task<List<GoodsIssueDocument>> GetGoodsIssueDocumentsAsync();
         Task CreateGoodsIssueDocumentAsync(GoodsIssueDocument document, List<OutboundResource> resources);
-
-        Task<List<Resource>> GetResourcesAsync();
-        Task CreateResourceAsync(Resource resource);
-
-        Task<List<UnitOfMeasurement>> GetUnitOfMeasurementsAsync();
-        Task CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement);
-
-        Task<List<Client>> GetClientsAsync();
-        Task CreateClientAsync(Client client);
     }
 }

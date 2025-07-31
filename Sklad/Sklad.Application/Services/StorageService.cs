@@ -144,55 +144,5 @@ namespace Sklad.Application.Services
                 _logger.LogError(ex, "Ошибка создания документа отгрузки");
             }
         }
-
-        public async Task<List<Resource>> GetResourcesAsync() =>
-            await _dbContext.Resources.ToListAsync();
-
-        public async Task CreateResourceAsync(Resource resource)
-        {
-            await CreateNamedEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
-        }
-
-        public async Task<List<UnitOfMeasurement>> GetUnitOfMeasurementsAsync() =>
-            await _dbContext.UnitOfMeasurements.ToListAsync();
-
-        public async Task CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
-        {
-            await CreateNamedEntityAsync(unitOfMeasurement, _dbContext.UnitOfMeasurements, DisplayedClassNames.UnitOfMeasurement);
-        }
-
-        public async Task<List<Client>> GetClientsAsync() =>
-            await _dbContext.Clients.ToListAsync();
-
-        public async Task CreateClientAsync(Client client)
-        {
-            await CreateNamedEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
-        }
-
-        private async Task CreateNamedEntityAsync<TEntity>(
-            TEntity entity,
-            DbSet<TEntity> dbSet,
-            string entityDisplayName)
-            where TEntity : class, INamedEntity
-        {
-            try
-            {
-                var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
-                if (existingEntity == null)
-                {
-                    await dbSet.AddAsync(entity);
-                    await _dbContext.SaveChangesAsync();
-                }
-                else
-                {
-                    throw new InvalidOperationException($"{entityDisplayName} с наименованием {entity.Name} уже существует");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при создании {entityDisplayName.ToLower()}");
-                throw;
-            }
-        }
     }
 }

@@ -14,7 +14,7 @@ namespace Sklad.Domain.Models
         public int ClientId { get; set; }
         public virtual Client Client { get; set; }
         public DateTime Date { get; set; }
-        public State State { get; set; }
+        public DocumentStateEnum State { get; set; }
         public ICollection<OutboundResource> OutboundResources { get; set; }
     }
 }

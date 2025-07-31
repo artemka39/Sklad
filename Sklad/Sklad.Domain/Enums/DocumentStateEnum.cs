@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Enums
 {
-    public enum State
+    public enum DocumentStateEnum
     {
-        Archived = 0,
-        Active = 1,
+        NotSigned = 0,
+        Signed = 1,
+        Withdrawn = 2,
     }
 }

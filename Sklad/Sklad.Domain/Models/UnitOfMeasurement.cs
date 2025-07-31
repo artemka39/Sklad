@@ -12,6 +12,6 @@ namespace Sklad.Domain.Models
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public State State { get; set; }
+        public GeneralStateEnum State { get; set; }
     }
 }
