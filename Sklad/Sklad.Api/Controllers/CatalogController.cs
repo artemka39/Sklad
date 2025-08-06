@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure;
+using Microsoft.AspNetCore.Mvc;
 using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ namespace Sklad.Api.Controllers
         [HttpGet("units")]
         public async Task<IActionResult> GetUnitOfMeasurements()
         {
-            var units = await _catalogService.GetUnitOfMeasurementsAsync();
+            var units = await _catalogService.GetUnitsOfMeasurementAsync();
             return Ok(units);
         }
 
@@ -40,127 +41,64 @@ namespace Sklad.Api.Controllers
         [HttpPost("resource")]
         public async Task<IActionResult> CreateResource([FromBody] Resource resource)
         {
-            try
-            {
-                await _catalogService.CreateResourceAsync(resource);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.CreateResourceAsync(resource);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPost("unit")]
         public async Task<IActionResult> CreateUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
         {
-            try
-            {
-                await _catalogService.CreateUnitOfMeasurementAsync(unit);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.CreateUnitOfMeasurementAsync(unit);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPost("client")]
         public async Task<IActionResult> CreateClient([FromBody] Client client)
         {
-            try
-            {
-                await _catalogService.CreateClientAsync(client);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.CreateClientAsync(client);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPut("resource")]
         public async Task<IActionResult> UpdateResource([FromBody] Resource resource)
         {
-            try
-            {
-                await _catalogService.UpdateResourceAsync(resource);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.UpdateResourceAsync(resource);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpDelete("resource/{id}")]
         public async Task<IActionResult> DeleteResource(int id)
         {
-            try
-            {
-                await _catalogService.DeleteResourceAsync(id);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.DeleteResourceAsync(id);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPut("unit")]
         public async Task<IActionResult> UpdateUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
         {
-            try
-            {
-                await _catalogService.UpdateUnitOfMeasurementAsync(unit);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.UpdateUnitOfMeasurementAsync(unit);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpDelete("unit/{id}")]
         public async Task<IActionResult> DeleteUnitOfMeasurement(int id)
         {
-            try
-            {
-                await _catalogService.DeleteUnitOfMeasurementAsync(id);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.DeleteUnitOfMeasurementAsync(id);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPut("client")]
         public async Task<IActionResult> UpdateClient([FromBody] Client client)
         {
-            try
-            {
-                await _catalogService.UpdateClientAsync(client);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.UpdateClientAsync(client);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpDelete("client/{id}")]
         public async Task<IActionResult> DeleteClient(int id)
         {
-            try
-            {
-                await _catalogService.DeleteClientAsync(id);
-                return Ok();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var response = await _catalogService.DeleteClientAsync(id);
+            return StatusCode((int)response.StatusCode, response);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.Extensions.Logging;
+using Sklad.Contracts.Responses;
 using Sklad.Domain.Constants;
 using Sklad.Domain.Enums;
 using Sklad.Domain.Interfaces;
@@ -12,6 +13,7 @@ using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace Sklad.Application.Services
 {
@@ -29,26 +31,44 @@ namespace Sklad.Application.Services
         public async Task<List<Resource>> GetResourcesAsync() =>
             await _dbContext.Resources.ToListAsync();
 
-        public async Task CreateResourceAsync(Resource resource)
+        public async Task<OperationResult<Resource>> CreateResourceAsync(Resource resource)
         {
-            await CreateCatalogEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
+            var result = await CreateCatalogEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.Created => OperationResultMessages.ResourceCreated,
+                HttpStatusCode.Conflict => OperationResultMessages.ResourceAlreadyExists,
+                HttpStatusCode.InternalServerError => OperationResultMessages.ResourceCreationFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
-        public async Task UpdateResourceAsync(Resource resource)
+        public async Task<OperationResult<Resource>> UpdateResourceAsync(Resource resource)
         {
             try
             {
                 _dbContext.Resources.Update(resource);
                 await _dbContext.SaveChangesAsync();
+                return new OperationResult<Resource>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Data = resource,
+                    Message = OperationResultMessages.ResourceUpdated
+                };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при обновлении ресурса с ID {resource.Id}");
-                throw;
+                return new OperationResult<Resource>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.ResourceUpdateFailed
+                };
             }
         }
 
-        public async Task DeleteResourceAsync(int resourceId)
+        public async Task<OperationResult> DeleteResourceAsync(int resourceId)
         {
             try
             {
@@ -61,53 +81,97 @@ namespace Sklad.Application.Services
                     .ToListAsync();
                 if (inboundResources.Any() || outboundResources.Any())
                 {
-                    throw new InvalidOperationException($"Невозможно удалить ресурс с ID {resourceId}, так как он используется в документах");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                        Message = OperationResultMessages.ResourceInUse
+                    };
                 }
                 if (resource != null)
                 {
                     _dbContext.Resources.Remove(resource);
                     await _dbContext.SaveChangesAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                        Message = OperationResultMessages.ResourceDeleted
+                    };
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Ресурс с ID {resourceId} не найден");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.ResourceNotFound
+                    };
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при удалении ресурса с ID {resourceId}");
-                throw;
+                _logger.LogError(ex, OperationResultMessages.ResourceDeletionFailed);
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.ResourceDeletionFailed
+                };
             }
         }
 
-        public async Task ArchiveResource(Resource resource)
+        public async Task<OperationResult> ArchiveResourceAsync(Resource resource)
         {
-            await ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
+            var result = await ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.OK => OperationResultMessages.ResourceArchived,
+                HttpStatusCode.NotFound => OperationResultMessages.ResourceNotFound,
+                HttpStatusCode.InternalServerError => OperationResultMessages.ResourceArchiveFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
-        public async Task<List<UnitOfMeasurement>> GetUnitOfMeasurementsAsync() =>
+        public async Task<List<UnitOfMeasurement>> GetUnitsOfMeasurementAsync() =>
             await _dbContext.UnitOfMeasurements.ToListAsync();
 
-        public async Task CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
+        public async Task<OperationResult<UnitOfMeasurement>> CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
         {
-            await CreateCatalogEntityAsync(unitOfMeasurement, _dbContext.UnitOfMeasurements, DisplayedClassNames.UnitOfMeasurement);
+            var result = await CreateCatalogEntityAsync(unitOfMeasurement, _dbContext.UnitOfMeasurements, DisplayedClassNames.UnitOfMeasurement);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.Created => OperationResultMessages.UnitOfMeasurementCreated,
+                HttpStatusCode.Conflict => OperationResultMessages.UnitOfMeasurementAlreadyExists,
+                HttpStatusCode.InternalServerError => OperationResultMessages.UnitOfMeasurementCreationFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
-        public async Task UpdateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
+        public async Task<OperationResult<UnitOfMeasurement>> UpdateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
         {
             try
             {
                 _dbContext.UnitOfMeasurements.Update(unitOfMeasurement);
                 await _dbContext.SaveChangesAsync();
+                return new OperationResult<UnitOfMeasurement>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Message = OperationResultMessages.UnitOfMeasurementUpdated,
+                    Data = unitOfMeasurement
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при обновлении единицы измерения с ID {unitOfMeasurement.Id}");
-                throw;
+                _logger.LogError(ex, OperationResultMessages.UnitOfMeasurementUpdateFailed);
+                return new OperationResult<UnitOfMeasurement>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.UnitOfMeasurementUpdateFailed,
+                    Data = unitOfMeasurement
+                };
             }
         }
 
-        public async Task DeleteUnitOfMeasurementAsync(int unitOfMeasurementId)
+        public async Task<OperationResult> DeleteUnitOfMeasurementAsync(int unitOfMeasurementId)
         {
             try
             {
@@ -120,54 +184,96 @@ namespace Sklad.Application.Services
                     .ToListAsync();
                 if (inboundResources.Any() || outboundResources.Any())
                 {
-                    throw new InvalidOperationException(
-                        $"Невозможно удалить единицу измерения с ID {unitOfMeasurementId}, так как она используется в ресурсах");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                        Message = OperationResultMessages.UnitOfMeasurementInUse,
+                    };
                 }
                 if (unit != null)
                 {
                     _dbContext.UnitOfMeasurements.Remove(unit);
                     await _dbContext.SaveChangesAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                        Message = OperationResultMessages.UnitOfMeasurementDeleted,
+                    };
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Единица измерения с ID {unitOfMeasurementId} не найдена");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.UnitOfMeasurementNotFound,
+                    };
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при удалении единицы измерения с ID {unitOfMeasurementId}");
-                throw;
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.UnitOfMeasurementDeletionFailed,
+                };
             }
         }
 
-        public async Task ArchiveUnitOfMeasurementAsync(UnitOfMeasurement unit)
+        public async Task<OperationResult> ArchiveUnitOfMeasurementAsync(UnitOfMeasurement unit)
         {
-            await ArchiveCatalogEntityAsync(unit, _dbContext.UnitOfMeasurements);
+            var result = await ArchiveCatalogEntityAsync(unit, _dbContext.UnitOfMeasurements);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.OK => OperationResultMessages.UnitOfMeasurementArchived,
+                HttpStatusCode.NotFound => OperationResultMessages.UnitOfMeasurementNotFound,
+                HttpStatusCode.InternalServerError => OperationResultMessages.UnitOfMeasurementArchiveFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
         public async Task<List<Client>> GetClientsAsync() =>
             await _dbContext.Clients.ToListAsync();
 
-        public async Task CreateClientAsync(Client client)
+        public async Task<OperationResult<Client>> CreateClientAsync(Client client)
         {
-            await CreateCatalogEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
+            var result = await CreateCatalogEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.Created => OperationResultMessages.ClientCreated,
+                HttpStatusCode.Conflict => OperationResultMessages.ClientAlreadyExists,
+                HttpStatusCode.InternalServerError => OperationResultMessages.ClientCreationFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
-        public async Task UpdateClientAsync(Client client)
+        public async Task<OperationResult<Client>> UpdateClientAsync(Client client)
         {
             try
             {
                 _dbContext.Clients.Update(client);
                 await _dbContext.SaveChangesAsync();
+                return new OperationResult<Client>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Message = OperationResultMessages.ClientCreated,
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при обновлении клиента с ID {client.Id}");
-                throw;
+                _logger.LogError(ex, OperationResultMessages.ClientCreationFailed);
+                return new OperationResult<Client>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.ClientCreationFailed,
+                    Data = client,
+                };
             }
         }
 
-        public async Task DeleteClientAsync(int clientId)
+        public async Task<OperationResult> DeleteClientAsync(int clientId)
         {
             try
             {
@@ -177,32 +283,56 @@ namespace Sklad.Application.Services
                     .ToListAsync();
                 if (goodsIssueDocuments.Any())
                 {
-                    throw new InvalidOperationException(
-                        $"Невозможно удалить клиента с ID {clientId}, так как он используется в документах отгрузки");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                        Message = OperationResultMessages.ClientInUse,
+                    };
                 }
                 if (client != null)
                 {
                     _dbContext.Clients.Remove(client);
                     await _dbContext.SaveChangesAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                        Message = OperationResultMessages.ClientDeleted,
+                    };
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Клиент с ID {clientId} не найден");
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.ClientNotFound,
+                    };
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при удалении клиента с ID {clientId}");
-                throw;
+                _logger.LogError(ex, OperationResultMessages.ClientDeletionFailed);
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.ClientDeletionFailed,
+                };
             }
         }
 
-        public async Task ArchiveClientAsync(Client client)
+        public async Task<OperationResult> ArchiveClientAsync(Client client)
         {
-            await ArchiveCatalogEntityAsync(client, _dbContext.Clients);
+            var result = await ArchiveCatalogEntityAsync(client, _dbContext.Clients);
+            result.Message = result.StatusCode switch
+            {
+                HttpStatusCode.OK => OperationResultMessages.ClientArchived,
+                HttpStatusCode.NotFound => OperationResultMessages.ClientNotFound,
+                HttpStatusCode.InternalServerError => OperationResultMessages.ClientArchiveFailed,
+                _ => string.Empty
+            };
+            return result;
         }
 
-        private async Task CreateCatalogEntityAsync<TEntity>(
+        private async Task<OperationResult<TEntity>> CreateCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet,
             string entityDisplayName)
@@ -216,20 +346,31 @@ namespace Sklad.Application.Services
                     entity.State = CatalogEntityStateEnum.Active;
                     await dbSet.AddAsync(entity);
                     await _dbContext.SaveChangesAsync();
+                    return new OperationResult<TEntity>
+                    {
+                        StatusCode = HttpStatusCode.Created,
+                        Data = entity
+                    };
                 }
                 else
                 {
-                    throw new InvalidOperationException($"{entityDisplayName} с наименованием {entity.Name} уже существует");
+                    return new OperationResult<TEntity>
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                    };
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при создании {entityDisplayName.ToLower()}");
-                throw;
+                return new OperationResult<TEntity>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                };
             }
         }
 
-        private async Task ArchiveCatalogEntityAsync<TEntity>(
+        private async Task<OperationResult> ArchiveCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity
@@ -241,11 +382,23 @@ namespace Sklad.Application.Services
                 {
                     existingEntity.State = CatalogEntityStateEnum.Archived;
                     await _dbContext.SaveChangesAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                    };
                 }
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.NotFound,
+                };
             }
             catch (Exception ex)
             {
-                throw;
+                _logger.LogError(ex, $"Ошибка при архивировании сущности {typeof(TEntity).Name}");
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                };
             }
         }
     }

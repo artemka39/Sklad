@@ -6,12 +6,15 @@ using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using Sklad.Domain.Enums;
 using Sklad.Persistence;
+using Sklad.Contracts.Responses;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
+
 
 namespace Sklad.Application.Services
 {
@@ -42,7 +45,7 @@ namespace Sklad.Application.Services
                 .ThenInclude(r => r.UnitOfMeasurement)
                 .ToListAsync();
 
-        public async Task CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request)
+        public async Task<OperationResult<GoodsReceiptDocument>> CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -89,15 +92,27 @@ namespace Sklad.Application.Services
                 await _dbContext.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                return new OperationResult<GoodsReceiptDocument>
+                {
+                    StatusCode = HttpStatusCode.Created,
+                    Message = OperationResultMessages.GoodsReceiptDocumentCreated,
+                    Data = document
+                };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Ошибка создания документа поступления");
+                _logger.LogError(ex, OperationResultMessages.GoodsReceiptDocumentCreationFailed);
+                return new OperationResult<GoodsReceiptDocument>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.GoodsReceiptDocumentCreationFailed
+                };
             }
         }
 
-        public async Task DeleteGoodsReceiptDocument(int documentId)
+        public async Task<OperationResult> DeleteGoodsReceiptDocument(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -117,37 +132,46 @@ namespace Sklad.Application.Services
 
                             if (balance == null || balance.Count < resource.Count)
                             {
-                                throw new InvalidOperationException(
-                                    $"Недостаточно остатка для ресурса (ID: {resource.ResourceId}, Ед. изм.: {resource.UnitOfMeasurementId}). Удаление невозможно.");
+                                return new OperationResult
+                                {
+                                    StatusCode = HttpStatusCode.BadRequest,
+                                    Message = OperationResultMessages.NotEnoughResource
+                                };
+                            }
+                            else
+                            {
+                                balance.Count -= resource.Count;
                             }
                         }
-
-                        foreach (var resource in document.InboundResources)
-                        {
-                            var balance = await _dbContext.Balances
-                                .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
-
-                            balance.Count -= resource.Count;
-                        }
-
                         _dbContext.InboundResources.RemoveRange(document.InboundResources);
                     }
-
                     _dbContext.GoodsReceiptDocuments.Remove(document);
                     await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NoContent,
+                        Message = OperationResultMessages.GoodsReceiptDocumentDeleted
+                    };
                 }
-
-                await transaction.CommitAsync();
-            }
-            catch (InvalidOperationException ex)
-            {
-                await transaction.RollbackAsync();
-                throw;
+                else
+                {
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.GoodsReceiptDocumentNotFound
+                    };
+                }
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Ошибка удаления доумента поступления");
+                _logger.LogError(ex, OperationResultMessages.GoodsReceiptDocumentDeletionFailed);
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.GoodsReceiptDocumentDeletionFailed
+                };
             }
         }
 
@@ -159,11 +183,15 @@ namespace Sklad.Application.Services
                 .ThenInclude(r => r.UnitOfMeasurement)
                 .ToListAsync();
 
-        public async Task CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request)
+        public async Task<OperationResult<GoodsIssueDocument>> CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request)
         {
             if (request.Resources == null || !request.Resources.Any())
             {
-                throw new InvalidOperationException("Документ отгрузки не может быть пустым.");
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Message = OperationResultMessages.NoResourcesProvided
+                };
             }
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -188,15 +216,26 @@ namespace Sklad.Application.Services
                 }));
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.Created,
+                    Message = OperationResultMessages.GoodsIssueDocumentCreated,
+                    Data = document
+                };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Ошибка создания документа отгрузки");
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.GoodsIssueDocumentCreationFailed
+                };
             }
         }
 
-        public async Task SignGoodsIssueDocumentAsync(int documentId)
+        public async Task<OperationResult<GoodsIssueDocument>> SignGoodsIssueDocumentAsync(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -206,11 +245,19 @@ namespace Sklad.Application.Services
                     .FirstOrDefaultAsync(d => d.Id == documentId);
                 if (document == null)
                 {
-                    throw new InvalidOperationException("Документ не найден.");
+                    return new OperationResult<GoodsIssueDocument>
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                    };
                 }
                 if (document.State != DocumentStateEnum.Signed)
                 {
-                    throw new InvalidOperationException("Документ уже подписан.");
+                    return new OperationResult<GoodsIssueDocument>
+                    {
+                        StatusCode = HttpStatusCode.BadRequest,
+                        Message = OperationResultMessages.GoodsIssueDocumentAlreadySigned
+                    };
                 }
                 foreach (var resource in document.OutboundResources)
                 {
@@ -218,28 +265,37 @@ namespace Sklad.Application.Services
                         .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
                     if (balance == null || balance.Count < resource.Count)
                     {
-                        throw new InvalidOperationException(
-                            $"Недостаточно остатка для ресурса (ID: {resource.ResourceId}, Ед. изм.: {resource.UnitOfMeasurementId}). Подписание невозможно.");
+                        return new OperationResult<GoodsIssueDocument>
+                        {
+                            StatusCode = HttpStatusCode.BadRequest,
+                            Message = OperationResultMessages.NotEnoughResource
+                        };
                     }
                     balance.Count -= resource.Count;
                 }
                 document.State = DocumentStateEnum.Signed;
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-            }
-            catch (InvalidOperationException ex)
-            {
-                await transaction.RollbackAsync();
-                throw;
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Message = OperationResultMessages.GoodsIssueDocumentSigned,
+                    Data = document
+                };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Ошибка подписания документа отгрузки");
+                _logger.LogError(ex, OperationResultMessages.GoodsIssueDocumentSigningFailed);
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.GoodsIssueDocumentSigningFailed
+                };
             }
         }
 
-        public async Task WithdrawGoodsIssueDocumentAsync(int documentId)
+        public async Task<OperationResult<GoodsIssueDocument>> WithdrawGoodsIssueDocumentAsync(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -249,35 +305,48 @@ namespace Sklad.Application.Services
                     .FirstOrDefaultAsync(d => d.Id == documentId);
                 if (document == null)
                 {
-                    throw new InvalidOperationException("Документ не найден.");
+                    return new OperationResult<GoodsIssueDocument>
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                    };
                 }
-                if (document.State != DocumentStateEnum.Withdrawn)
+                if (document.State == DocumentStateEnum.Withdrawn)
                 {
-                    throw new InvalidOperationException("Документ уже отозван.");
+                    return new OperationResult<GoodsIssueDocument>
+                    {
+                        StatusCode = HttpStatusCode.BadRequest,
+                        Message = OperationResultMessages.GoodsIssueDocumentAlreadyWithdrawn
+                    };
                 }
                 foreach (var resource in document.OutboundResources)
                 {
                     var balance = await _dbContext.Balances
                         .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
-                    if (balance == null || balance.Count < resource.Count)
+                    if (balance != null)
                     {
-                        throw new InvalidOperationException();
+                        balance.Count += resource.Count;
                     }
-                    balance.Count += resource.Count;
                 }
                 document.State = DocumentStateEnum.Withdrawn;
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-            }
-            catch (InvalidOperationException ex)
-            {
-                await transaction.RollbackAsync();
-                throw;
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Message = OperationResultMessages.GoodsIssueDocumentWithdrawn,
+                    Data = document
+                };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Ошибка подписания документа отгрузки");
+                return new OperationResult<GoodsIssueDocument>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = OperationResultMessages.GoodsIssueDocumentWithdrawalFailed
+                };
             }
         }
 

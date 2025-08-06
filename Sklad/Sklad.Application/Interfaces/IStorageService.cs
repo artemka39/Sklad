@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Sklad.Contracts.Requests;
+using Sklad.Contracts.Responses;
 
 namespace Sklad.Domain.Interfaces
 {
@@ -11,12 +12,12 @@ namespace Sklad.Domain.Interfaces
         Task<List<Balance>> GetStorageBalanceAsync(int? resourceId, int? unitId);
 
         Task<List<GoodsReceiptDocument>> GetGoodsReceiptDocumentsAsync();
-        Task CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request);
-        Task DeleteGoodsReceiptDocument(int documentId);
+        Task<OperationResult<GoodsReceiptDocument>> CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request);
+        Task<OperationResult> DeleteGoodsReceiptDocument(int documentId);
 
         Task<List<GoodsIssueDocument>> GetGoodsIssueDocumentsAsync();
-        Task CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request);
-        Task SignGoodsIssueDocumentAsync(int documentId);
-        Task WithdrawGoodsIssueDocumentAsync(int documentId);
+        Task<OperationResult<GoodsIssueDocument>> CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request);
+        Task<OperationResult<GoodsIssueDocument>> SignGoodsIssueDocumentAsync(int documentId);
+        Task<OperationResult<GoodsIssueDocument>> WithdrawGoodsIssueDocumentAsync(int documentId);
     }
 }

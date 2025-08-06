@@ -32,15 +32,15 @@ namespace Sklad.Api.Controllers
         [HttpPost("receipts")]
         public async Task<IActionResult> CreateGoodsReceiptDocument([FromBody] CreateGoodsReceiptDocumentRequest request)
         {
-            await _storageService.CreateGoodsReceiptDocumentAsync(request);
-            return Ok();
+            var response = await _storageService.CreateGoodsReceiptDocumentAsync(request);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpDelete("receipts/{documentId}")]
         public async Task<IActionResult> DeleteGoodsReceiptDocument(int documentId)
         {
-            await _storageService.DeleteGoodsReceiptDocument(documentId);
-            return NoContent();
+            var response = await _storageService.DeleteGoodsReceiptDocument(documentId);
+            return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpGet("shipments")]
@@ -53,8 +53,22 @@ namespace Sklad.Api.Controllers
         [HttpPost("shipments")]
         public async Task<IActionResult> CreateGoodsIssueDocument([FromBody] CreateGoodsIssueDocumentRequest request)
         {
-            await _storageService.CreateGoodsIssueDocumentAsync(request);
-            return Ok();
+            var response = await _storageService.CreateGoodsIssueDocumentAsync(request);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPatch("shipments/sing/{documentId}")]
+        public async Task<IActionResult> SignGoodsIssueDocument(int documentId)
+        {
+            var response = await _storageService.SignGoodsIssueDocumentAsync(documentId);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPatch("shipments/withdraw/{documentId}")]
+        public async Task<IActionResult> WithdrawGoodsIssueDocument(int documentId)
+        {
+            var response = await _storageService.WithdrawGoodsIssueDocumentAsync(documentId);
+            return StatusCode((int)response.StatusCode, response);
         }
     }
 }
