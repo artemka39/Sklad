@@ -9,8 +9,8 @@ namespace Sklad.Domain.Models
 {
     public class GoodsIssueDocument
     {
-        public Guid Id { get; set; }
-        public long Number { get; set; }
+        public int Id { get; set; }
+        public int Number { get; set; }
         public int ClientId { get; set; }
         public virtual Client Client { get; set; }
         public DateTime Date { get; set; }

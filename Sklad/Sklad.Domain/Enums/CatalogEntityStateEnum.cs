@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Enums
 {
-    public enum GeneralStateEnum
+    public enum CatalogEntityStateEnum
     {
         Archived = 0,
         Active = 1,

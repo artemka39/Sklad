@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Sklad.Domain\Sklad.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

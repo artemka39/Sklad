@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Models
 {
-    public class UnitOfMeasurement : INamedEntity
+    public class UnitOfMeasurement : ICatalogEntity
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public GeneralStateEnum State { get; set; }
+        public CatalogEntityStateEnum State { get; set; }
     }
 }

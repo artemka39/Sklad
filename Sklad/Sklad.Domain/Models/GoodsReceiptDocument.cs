@@ -8,8 +8,8 @@ namespace Sklad.Domain.Models
 {
     public class GoodsReceiptDocument
     {
-        public Guid Id { get; set; }
-        public long Number { get; set; }
+        public int Id { get; set; }
+        public int Number { get; set; }
         public DateTime Date { get; set; }
         public ICollection<InboundResource> InboundResources { get; set; }
     }

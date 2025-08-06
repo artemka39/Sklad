@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.Extensions.Logging;
 using Sklad.Domain.Constants;
+using Sklad.Domain.Enums;
 using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using Sklad.Persistence;
@@ -29,7 +31,7 @@ namespace Sklad.Application.Services
 
         public async Task CreateResourceAsync(Resource resource)
         {
-            await CreateNamedEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
+            await CreateCatalogEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
         }
 
         public async Task UpdateResourceAsync(Resource resource)
@@ -78,12 +80,17 @@ namespace Sklad.Application.Services
             }
         }
 
+        public async Task ArchiveResource(Resource resource)
+        {
+            await ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
+        }
+
         public async Task<List<UnitOfMeasurement>> GetUnitOfMeasurementsAsync() =>
             await _dbContext.UnitOfMeasurements.ToListAsync();
 
         public async Task CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
         {
-            await CreateNamedEntityAsync(unitOfMeasurement, _dbContext.UnitOfMeasurements, DisplayedClassNames.UnitOfMeasurement);
+            await CreateCatalogEntityAsync(unitOfMeasurement, _dbContext.UnitOfMeasurements, DisplayedClassNames.UnitOfMeasurement);
         }
 
         public async Task UpdateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement)
@@ -133,12 +140,17 @@ namespace Sklad.Application.Services
             }
         }
 
+        public async Task ArchiveUnitOfMeasurementAsync(UnitOfMeasurement unit)
+        {
+            await ArchiveCatalogEntityAsync(unit, _dbContext.UnitOfMeasurements);
+        }
+
         public async Task<List<Client>> GetClientsAsync() =>
             await _dbContext.Clients.ToListAsync();
 
         public async Task CreateClientAsync(Client client)
         {
-            await CreateNamedEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
+            await CreateCatalogEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
         }
 
         public async Task UpdateClientAsync(Client client)
@@ -185,17 +197,23 @@ namespace Sklad.Application.Services
             }
         }
 
-        private async Task CreateNamedEntityAsync<TEntity>(
+        public async Task ArchiveClientAsync(Client client)
+        {
+            await ArchiveCatalogEntityAsync(client, _dbContext.Clients);
+        }
+
+        private async Task CreateCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet,
             string entityDisplayName)
-            where TEntity : class, INamedEntity
+            where TEntity : class, ICatalogEntity
         {
             try
             {
                 var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
                 if (existingEntity == null)
                 {
+                    entity.State = CatalogEntityStateEnum.Active;
                     await dbSet.AddAsync(entity);
                     await _dbContext.SaveChangesAsync();
                 }
@@ -207,6 +225,26 @@ namespace Sklad.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при создании {entityDisplayName.ToLower()}");
+                throw;
+            }
+        }
+
+        private async Task ArchiveCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity
+        {
+            try
+            {
+                var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
+                if (existingEntity != null)
+                {
+                    existingEntity.State = CatalogEntityStateEnum.Archived;
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
                 throw;
             }
         }

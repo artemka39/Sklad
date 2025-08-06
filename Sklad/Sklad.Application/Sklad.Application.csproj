@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sklad.Contracts\Sklad.Contracts.csproj" />
     <ProjectReference Include="..\Sklad.Domain\Sklad.Domain.csproj" />
     <ProjectReference Include="..\Sklad.Persistence\Sklad.Persistence.csproj" />
   </ItemGroup>

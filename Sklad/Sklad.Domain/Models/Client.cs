@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Models
 {
-    public class Client : INamedEntity
+    public class Client : ICatalogEntity
     {
         public int Id { get; set; }
         public string Name { get; set; }
         public string Address { get; set; }
-        public GeneralStateEnum State { get; set; }
+        public CatalogEntityStateEnum State { get; set; }
     }
 }

@@ -1,12 +1,28 @@
 using Sklad.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Sklad.Domain.Interfaces;
+using Sklad.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.  
-builder.Services.AddRazorPages();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+builder.Services.AddControllers();
+
+// Add services to the container.
 builder.Services.AddDbContext<SkladDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<ILogger, Logger<SkladDbContext>>();
+builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IStorageService, StorageService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.  
@@ -22,8 +38,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthorization();
+app.UseCors("AllowFrontend");
 
-app.MapRazorPages();
+app.MapControllers();
+//app.UseAuthorization();
 
 app.Run();
