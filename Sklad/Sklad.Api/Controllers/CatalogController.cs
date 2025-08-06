@@ -24,38 +24,10 @@ namespace Sklad.Api.Controllers
             return Ok(resources);
         }
 
-        [HttpGet("units")]
-        public async Task<IActionResult> GetUnitOfMeasurements()
-        {
-            var units = await _catalogService.GetUnitsOfMeasurementAsync();
-            return Ok(units);
-        }
-
-        [HttpGet("clients")]
-        public async Task<IActionResult> GetClients()
-        {
-            var clients = await _catalogService.GetClientsAsync();
-            return Ok(clients);
-        }
-
         [HttpPost("resource")]
         public async Task<IActionResult> CreateResource([FromBody] Resource resource)
         {
             var response = await _catalogService.CreateResourceAsync(resource);
-            return StatusCode((int)response.StatusCode, response);
-        }
-
-        [HttpPost("unit")]
-        public async Task<IActionResult> CreateUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
-        {
-            var response = await _catalogService.CreateUnitOfMeasurementAsync(unit);
-            return StatusCode((int)response.StatusCode, response);
-        }
-
-        [HttpPost("client")]
-        public async Task<IActionResult> CreateClient([FromBody] Client client)
-        {
-            var response = await _catalogService.CreateClientAsync(client);
             return StatusCode((int)response.StatusCode, response);
         }
 
@@ -73,6 +45,27 @@ namespace Sklad.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        [HttpPatch("resource")]
+        public async Task<IActionResult> ArchiveResource([FromBody] Resource resource)
+        {
+            var response = await _catalogService.ArchiveResourceAsync(resource);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpGet("units")]
+        public async Task<IActionResult> GetUnitOfMeasurements()
+        {
+            var units = await _catalogService.GetUnitsOfMeasurementAsync();
+            return Ok(units);
+        }
+
+        [HttpPost("unit")]
+        public async Task<IActionResult> CreateUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
+        {
+            var response = await _catalogService.CreateUnitOfMeasurementAsync(unit);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
         [HttpPut("unit")]
         public async Task<IActionResult> UpdateUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
         {
@@ -87,6 +80,27 @@ namespace Sklad.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        [HttpPatch("unit")]
+        public async Task<IActionResult> ArchiveUnitOfMeasurement([FromBody] UnitOfMeasurement unit)
+        {
+            var response = await _catalogService.ArchiveUnitOfMeasurementAsync(unit);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpGet("clients")]
+        public async Task<IActionResult> GetClients()
+        {
+            var clients = await _catalogService.GetClientsAsync();
+            return Ok(clients);
+        }
+
+        [HttpPost("client")]
+        public async Task<IActionResult> CreateClient([FromBody] Client client)
+        {
+            var response = await _catalogService.CreateClientAsync(client);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
         [HttpPut("client")]
         public async Task<IActionResult> UpdateClient([FromBody] Client client)
         {
@@ -98,6 +112,13 @@ namespace Sklad.Api.Controllers
         public async Task<IActionResult> DeleteClient(int id)
         {
             var response = await _catalogService.DeleteClientAsync(id);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPatch("client")]
+        public async Task<IActionResult> ArchiveClient([FromBody] Client client)
+        {
+            var response = await _catalogService.ArchiveClientAsync(client);
             return StatusCode((int)response.StatusCode, response);
         }
     }

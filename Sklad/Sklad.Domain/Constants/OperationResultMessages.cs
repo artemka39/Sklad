@@ -12,12 +12,18 @@ namespace Sklad.Domain.Constants
         public const string GoodsReceiptDocumentNotFound = "Документ поступления не найден";
         public const string GoodsReceiptDocumentCreated = "Документ поступления успешно создан";
         public const string GoodsReceiptDocumentCreationFailed = "Ошибка создания документа поступления";
+        public const string GoodsReceiptDocumentUpdated = "Документ поступления успешно обновлен";
+        public const string GoodsReceiptDocumentUpdateFailed = "Ошибка обновления документа поступления";
         public const string GoodsReceiptDocumentDeleted = "Документ поступления успешно удален";
         public const string GoodsReceiptDocumentDeletionFailed = "Ошибка удаления документа поступления";
 
         public const string GoodsIssueDocumentNotFound = "Документ отгрузки не найден";
         public const string GoodsIssueDocumentCreated = "Документ отгрузки успешно создан";
         public const string GoodsIssueDocumentCreationFailed = "Ошибка создания документа отгрузки";
+        public const string GoodsIssueDocumentUpdated = "Документ отгрузки успешно обновлен";
+        public const string GoodsIssueDocumentUpdateFailed = "Ошибка обновления документа отгрузки";
+        public const string GoodsIssueDocumentDeleted = "Документ отгрузки успешно удален";
+        public const string GoodsIssueDocumentDeletionFailed = "Ошибка удаления документа отгрузки";
         public const string GoodsIssueDocumentSigned = "Документ отгрузки успешно подписан";
         public const string GoodsIssueDocumentAlreadySigned = "Документ отгрузки уже подписан";
         public const string GoodsIssueDocumentSigningFailed = "Ошибка подписания документа отгрузки";
