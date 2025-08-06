@@ -2,6 +2,7 @@
 using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using Sklad.Contracts.Requests;
+using Sklad.Contracts.Dtos;
 
 namespace Sklad.Api.Controllers
 {
@@ -23,9 +24,9 @@ namespace Sklad.Api.Controllers
         }
 
         [HttpGet("receipts")]
-        public async Task<IActionResult> GetGoodsReceiptDocuments()
+        public async Task<IActionResult> GetGoodsReceiptDocuments([FromQuery] DocumentFilterDto filters)
         {
-            var goodsReceiptDocuments = await _storageService.GetGoodsReceiptDocumentsAsync();
+            var goodsReceiptDocuments = await _storageService.GetGoodsReceiptDocumentsAsync(filters);
             return Ok(goodsReceiptDocuments);
         }
 
@@ -44,9 +45,9 @@ namespace Sklad.Api.Controllers
         }
 
         [HttpGet("shipments")]
-        public async Task<IActionResult> GetGoodsIssueDocuments()
+        public async Task<IActionResult> GetGoodsIssueDocuments([FromQuery] DocumentFilterDto filters)
         {
-            var goodsIssueDocuments = await _storageService.GetGoodsIssueDocumentsAsync();
+            var goodsIssueDocuments = await _storageService.GetGoodsIssueDocumentsAsync(filters);
             return Ok(goodsIssueDocuments);
         }
 

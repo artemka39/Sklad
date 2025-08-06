@@ -1,19 +1,21 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Sklad.Contracts.Dtos;
 using Sklad.Contracts.Requests;
+using Sklad.Contracts.Responses;
 using Sklad.Domain.Constants;
+using Sklad.Domain.Enums;
 using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
-using Sklad.Domain.Enums;
 using Sklad.Persistence;
-using Sklad.Contracts.Responses;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
-using System.Net;
+using System.Xml.Linq;
 
 
 namespace Sklad.Application.Services
@@ -29,7 +31,7 @@ namespace Sklad.Application.Services
             _logger = logger;
         }
 
-        public async Task<List<Balance>> GetStorageBalanceAsync(int? resourceId, int? unitId) => 
+        public async Task<List<Balance>> GetStorageBalanceAsync(int? resourceId, int? unitId) =>
             await _dbContext.Balances
                 .Where(b => (!resourceId.HasValue || b.ResourceId == resourceId) &&
                             (!unitId.HasValue || b.UnitOfMeasurementId == unitId))
@@ -37,13 +39,34 @@ namespace Sklad.Application.Services
                 .Include(b => b.UnitOfMeasurement)
                 .ToListAsync();
 
-        public async Task<List<GoodsReceiptDocument>> GetGoodsReceiptDocumentsAsync() =>
-            await _dbContext.GoodsReceiptDocuments
+        public async Task<List<GoodsReceiptDocument>> GetGoodsReceiptDocumentsAsync(DocumentFilterDto filters)
+        {
+            var documents = _dbContext.GoodsReceiptDocuments
                 .Include(d => d.InboundResources)
                 .ThenInclude(r => r.Resource)
                 .Include(d => d.InboundResources)
                 .ThenInclude(r => r.UnitOfMeasurement)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (filters != null)
+            {
+                if (filters.DocumentNumbers?.Any() == true)
+                    documents = documents.Where(d => filters.DocumentNumbers.Contains(d.Number));
+
+                if (filters.ResourceIds?.Any() == true)
+                    documents = documents.Where(d => d.InboundResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
+
+                if (filters.UnitOfMeasurementIds?.Any() == true)
+                    documents = documents.Where(d => d.InboundResources.Any(or => filters.UnitOfMeasurementIds.Contains(or.UnitOfMeasurementId)));
+
+                if (filters.FromDate.HasValue)
+                    documents = documents.Where(d => d.Date >= filters.FromDate.Value);
+
+                if (filters.ToDate.HasValue)
+                    documents = documents.Where(d => d.Date <= filters.ToDate.Value);
+            }
+            return await documents.ToListAsync();
+        }
 
         public async Task<OperationResult<GoodsReceiptDocument>> CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request)
         {
@@ -289,13 +312,34 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<List<GoodsIssueDocument>> GetGoodsIssueDocumentsAsync() =>
-            await _dbContext.GoodsIssueDocuments
+        public async Task<List<GoodsIssueDocument>> GetGoodsIssueDocumentsAsync(DocumentFilterDto filters)
+        {
+            var documents = _dbContext.GoodsIssueDocuments
                 .Include(d => d.OutboundResources)
                 .ThenInclude(r => r.Resource)
                 .Include(d => d.OutboundResources)
                 .ThenInclude(r => r.UnitOfMeasurement)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (filters != null)
+            {
+                if (filters.DocumentNumbers?.Any() == true)
+                    documents = documents.Where(d => filters.DocumentNumbers.Contains(d.Number));
+
+                if (filters.ResourceIds?.Any() == true)
+                    documents = documents.Where(d => d.OutboundResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
+
+                if (filters.UnitOfMeasurementIds?.Any() == true)
+                    documents = documents.Where(d => d.OutboundResources.Any(or => filters.UnitOfMeasurementIds.Contains(or.UnitOfMeasurementId)));
+
+                if (filters.FromDate.HasValue)
+                    documents = documents.Where(d => d.Date >= filters.FromDate.Value);
+
+                if (filters.ToDate.HasValue)
+                    documents = documents.Where(d => d.Date <= filters.ToDate.Value);
+            }
+            return await documents.ToListAsync();
+        }
 
         public async Task<OperationResult<GoodsIssueDocument>> CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request)
         {
@@ -568,7 +612,7 @@ namespace Sklad.Application.Services
             }
         }
 
-        private int GetDocumentNumber(Type type) => 
+        private int GetDocumentNumber(Type type) =>
             type switch
             {
                 Type t when t == typeof(GoodsReceiptDocument) =>
