@@ -10,7 +10,7 @@ namespace Sklad.Contracts.Dtos
     {
         public List<int> DocumentNumbers { get; set; } = new List<int>();
         public List<int> ResourceIds { get; set; } = new List<int>();
-        public List<int> UnitOfMeasurementIds { get; set; } = new List<int>();
+        public List<int> UnitIds { get; set; } = new List<int>();
 
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }

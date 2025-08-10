@@ -1,31 +1,40 @@
-﻿using Sklad.Contracts.Responses;
+﻿using Microsoft.EntityFrameworkCore;
+using Sklad.Contracts.Responses;
+using Sklad.Domain.Constants;
+using Sklad.Domain.Enums;
 using Sklad.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sklad.Domain.Interfaces
+namespace Sklad.Application.Interfaces
 {
     public interface ICatalogService
     {
-        Task<List<Resource>> GetResourcesAsync();
-        Task<OperationResult<Resource>> CreateResourceAsync(Resource resource);
-        Task<OperationResult<Resource>> UpdateResourceAsync(Resource resource);
-        Task<OperationResult> DeleteResourceAsync(int resourceId);
-        Task<OperationResult> ArchiveResourceAsync(Resource resource);
+        public Task<OperationResult<TEntity>> CreateCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet,
+            string entityDisplayName)
+            where TEntity : class, ICatalogEntity;
 
-        Task<List<UnitOfMeasurement>> GetUnitsOfMeasurementAsync();
-        Task<OperationResult<UnitOfMeasurement>> CreateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement);
-        Task<OperationResult<UnitOfMeasurement>> UpdateUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement);
-        Task<OperationResult> DeleteUnitOfMeasurementAsync(int unitOfMeasurementId);
-        Task<OperationResult> ArchiveUnitOfMeasurementAsync(UnitOfMeasurement unitOfMeasurement);
+        //public async Task<OperationResult> DeleteMultipleEntitiesAsync(
+        //    )
+        //{
 
-        Task<List<Client>> GetClientsAsync();
-        Task<OperationResult<Client>> CreateClientAsync(Client client);
-        Task<OperationResult<Client>> UpdateClientAsync(Client client);
-        Task<OperationResult> DeleteClientAsync(int clientId);
-        Task<OperationResult> ArchiveClientAsync(Client client);
+        //}
+
+        public Task<OperationResult> ArchiveCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity;
+
+        public Task<OperationResult> ArchiveMultipleEntitiesAsync<TEntity>(
+            TEntity[] entities,
+            DbSet<TEntity> dbSet,
+            Func<TEntity, Task<OperationResult>> func) where TEntity : class, ICatalogEntity;
+        
     }
 }

@@ -9,7 +9,7 @@ namespace Sklad.Domain.Constants
     public static class DisplayedClassNames
     {
         public const string Resource = "Ресурс";
-        public const string UnitOfMeasurement = "Единица измерения";
+        public const string Unit = "Единица измерения";
         public const string Client = "Клиeнт";
     }
 }

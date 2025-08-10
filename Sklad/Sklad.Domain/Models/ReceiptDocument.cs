@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Models
 {
-    public class GoodsReceiptDocument
+    public class ReceiptDocument
     {
         public int Id { get; set; }
         public int Number { get; set; }
         public DateTime Date { get; set; }
-        public ICollection<InboundResource> InboundResources { get; set; }
+        public ICollection<ReceiptResource> ReceiptResources { get; set; }
     }
 }

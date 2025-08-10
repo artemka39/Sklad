@@ -1,16 +1,14 @@
-﻿using Sklad.Contracts.Dtos;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Sklad.Contracts.Dtos;
 
 namespace Sklad.Contracts.Requests
 {
-    public class UpdateGoodsIssueDocumentRequest
+    public class CreateReceiptDocumentRequest
     {
-        public int DocumentId { get; set; }
-        public int ClientId { get; set; }
         public List<ResourceDto> Resources { get; set; }
     }
 }

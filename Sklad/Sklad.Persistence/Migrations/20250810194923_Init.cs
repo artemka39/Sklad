@@ -27,7 +27,7 @@ namespace Sklad.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "GoodsReceiptDocuments",
+                name: "ReceiptDocuments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -37,7 +37,7 @@ namespace Sklad.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GoodsReceiptDocuments", x => x.Id);
+                    table.PrimaryKey("PK_ReceiptDocuments", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -55,7 +55,7 @@ namespace Sklad.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "UnitOfMeasurements",
+                name: "Units",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -65,11 +65,11 @@ namespace Sklad.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UnitOfMeasurements", x => x.Id);
+                    table.PrimaryKey("PK_Units", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "GoodsIssueDocuments",
+                name: "ShipmentDocuments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -81,9 +81,9 @@ namespace Sklad.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GoodsIssueDocuments", x => x.Id);
+                    table.PrimaryKey("PK_ShipmentDocuments", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_GoodsIssueDocuments_Clients_ClientId",
+                        name: "FK_ShipmentDocuments_Clients_ClientId",
                         column: x => x.ClientId,
                         principalTable: "Clients",
                         principalColumn: "Id",
@@ -97,8 +97,8 @@ namespace Sklad.Persistence.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ResourceId = table.Column<int>(type: "int", nullable: false),
-                    UnitOfMeasurementId = table.Column<int>(type: "int", nullable: false),
-                    Count = table.Column<int>(type: "int", nullable: false)
+                    UnitId = table.Column<int>(type: "int", nullable: false),
+                    Count = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -110,77 +110,77 @@ namespace Sklad.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Balances_UnitOfMeasurements_UnitOfMeasurementId",
-                        column: x => x.UnitOfMeasurementId,
-                        principalTable: "UnitOfMeasurements",
+                        name: "FK_Balances_Units_UnitId",
+                        column: x => x.UnitId,
+                        principalTable: "Units",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "InboundResources",
+                name: "ReceiptResources",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ResourceId = table.Column<int>(type: "int", nullable: false),
-                    UnitOfMeasurementId = table.Column<int>(type: "int", nullable: false),
-                    GoodsReceiptDocumentId = table.Column<int>(type: "int", nullable: false),
-                    Count = table.Column<int>(type: "int", nullable: false)
+                    UnitId = table.Column<int>(type: "int", nullable: false),
+                    ReceiptDocumentId = table.Column<int>(type: "int", nullable: false),
+                    Count = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_InboundResources", x => x.Id);
+                    table.PrimaryKey("PK_ReceiptResources", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_InboundResources_GoodsReceiptDocuments_GoodsReceiptDocumentId",
-                        column: x => x.GoodsReceiptDocumentId,
-                        principalTable: "GoodsReceiptDocuments",
+                        name: "FK_ReceiptResources_ReceiptDocuments_ReceiptDocumentId",
+                        column: x => x.ReceiptDocumentId,
+                        principalTable: "ReceiptDocuments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_InboundResources_Resources_ResourceId",
+                        name: "FK_ReceiptResources_Resources_ResourceId",
                         column: x => x.ResourceId,
                         principalTable: "Resources",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_InboundResources_UnitOfMeasurements_UnitOfMeasurementId",
-                        column: x => x.UnitOfMeasurementId,
-                        principalTable: "UnitOfMeasurements",
+                        name: "FK_ReceiptResources_Units_UnitId",
+                        column: x => x.UnitId,
+                        principalTable: "Units",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "OutboundResources",
+                name: "ShipmentResources",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ResourceId = table.Column<int>(type: "int", nullable: false),
-                    UnitOfMeasurementId = table.Column<int>(type: "int", nullable: false),
-                    GoodsIssueDocumentId = table.Column<int>(type: "int", nullable: false),
-                    Count = table.Column<int>(type: "int", nullable: false)
+                    UnitId = table.Column<int>(type: "int", nullable: false),
+                    ShipmentDocumentId = table.Column<int>(type: "int", nullable: false),
+                    Count = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OutboundResources", x => x.Id);
+                    table.PrimaryKey("PK_ShipmentResources", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_OutboundResources_GoodsIssueDocuments_GoodsIssueDocumentId",
-                        column: x => x.GoodsIssueDocumentId,
-                        principalTable: "GoodsIssueDocuments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_OutboundResources_Resources_ResourceId",
+                        name: "FK_ShipmentResources_Resources_ResourceId",
                         column: x => x.ResourceId,
                         principalTable: "Resources",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_OutboundResources_UnitOfMeasurements_UnitOfMeasurementId",
-                        column: x => x.UnitOfMeasurementId,
-                        principalTable: "UnitOfMeasurements",
+                        name: "FK_ShipmentResources_ShipmentDocuments_ShipmentDocumentId",
+                        column: x => x.ShipmentDocumentId,
+                        principalTable: "ShipmentDocuments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ShipmentResources_Units_UnitId",
+                        column: x => x.UnitId,
+                        principalTable: "Units",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -191,9 +191,9 @@ namespace Sklad.Persistence.Migrations
                 column: "ResourceId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Balances_UnitOfMeasurementId",
+                name: "IX_Balances_UnitId",
                 table: "Balances",
-                column: "UnitOfMeasurementId");
+                column: "UnitId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Clients_Name",
@@ -202,51 +202,25 @@ namespace Sklad.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_GoodsIssueDocuments_ClientId",
-                table: "GoodsIssueDocuments",
-                column: "ClientId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_GoodsIssueDocuments_Number",
-                table: "GoodsIssueDocuments",
+                name: "IX_ReceiptDocuments_Number",
+                table: "ReceiptDocuments",
                 column: "Number",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_GoodsReceiptDocuments_Number",
-                table: "GoodsReceiptDocuments",
-                column: "Number",
-                unique: true);
+                name: "IX_ReceiptResources_ReceiptDocumentId",
+                table: "ReceiptResources",
+                column: "ReceiptDocumentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_InboundResources_GoodsReceiptDocumentId",
-                table: "InboundResources",
-                column: "GoodsReceiptDocumentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_InboundResources_ResourceId",
-                table: "InboundResources",
+                name: "IX_ReceiptResources_ResourceId",
+                table: "ReceiptResources",
                 column: "ResourceId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_InboundResources_UnitOfMeasurementId",
-                table: "InboundResources",
-                column: "UnitOfMeasurementId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboundResources_GoodsIssueDocumentId",
-                table: "OutboundResources",
-                column: "GoodsIssueDocumentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboundResources_ResourceId",
-                table: "OutboundResources",
-                column: "ResourceId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboundResources_UnitOfMeasurementId",
-                table: "OutboundResources",
-                column: "UnitOfMeasurementId");
+                name: "IX_ReceiptResources_UnitId",
+                table: "ReceiptResources",
+                column: "UnitId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Resources_Name",
@@ -255,8 +229,34 @@ namespace Sklad.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_UnitOfMeasurements_Name",
-                table: "UnitOfMeasurements",
+                name: "IX_ShipmentDocuments_ClientId",
+                table: "ShipmentDocuments",
+                column: "ClientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentDocuments_Number",
+                table: "ShipmentDocuments",
+                column: "Number",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentResources_ResourceId",
+                table: "ShipmentResources",
+                column: "ResourceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentResources_ShipmentDocumentId",
+                table: "ShipmentResources",
+                column: "ShipmentDocumentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentResources_UnitId",
+                table: "ShipmentResources",
+                column: "UnitId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Units_Name",
+                table: "Units",
                 column: "Name",
                 unique: true);
         }
@@ -268,22 +268,22 @@ namespace Sklad.Persistence.Migrations
                 name: "Balances");
 
             migrationBuilder.DropTable(
-                name: "InboundResources");
+                name: "ReceiptResources");
 
             migrationBuilder.DropTable(
-                name: "OutboundResources");
+                name: "ShipmentResources");
 
             migrationBuilder.DropTable(
-                name: "GoodsReceiptDocuments");
-
-            migrationBuilder.DropTable(
-                name: "GoodsIssueDocuments");
+                name: "ReceiptDocuments");
 
             migrationBuilder.DropTable(
                 name: "Resources");
 
             migrationBuilder.DropTable(
-                name: "UnitOfMeasurements");
+                name: "ShipmentDocuments");
+
+            migrationBuilder.DropTable(
+                name: "Units");
 
             migrationBuilder.DropTable(
                 name: "Clients");

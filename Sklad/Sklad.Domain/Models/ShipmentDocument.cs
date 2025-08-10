@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Models
 {
-    public class GoodsIssueDocument
+    public class ShipmentDocument
     {
         public int Id { get; set; }
         public int Number { get; set; }
@@ -15,6 +15,6 @@ namespace Sklad.Domain.Models
         public virtual Client Client { get; set; }
         public DateTime Date { get; set; }
         public DocumentStateEnum State { get; set; }
-        public ICollection<OutboundResource> OutboundResources { get; set; }
+        public ICollection<ShipmentResource> ShipmentResources { get; set; }
     }
 }

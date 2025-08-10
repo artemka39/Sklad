@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using Sklad.Contracts.Requests;
 using Sklad.Contracts.Dtos;
+using Sklad.Application.Interfaces;
 
 namespace Sklad.Api.Controllers
 {
@@ -24,51 +24,72 @@ namespace Sklad.Api.Controllers
         }
 
         [HttpGet("receipts")]
-        public async Task<IActionResult> GetGoodsReceiptDocuments([FromQuery] DocumentFilterDto filters)
+        public async Task<IActionResult> GetReceiptDocuments([FromQuery] DocumentFilterDto filters)
         {
-            var goodsReceiptDocuments = await _storageService.GetGoodsReceiptDocumentsAsync(filters);
-            return Ok(goodsReceiptDocuments);
+            var ReceiptDocuments = await _storageService.GetReceiptDocumentsAsync(filters);
+            return Ok(ReceiptDocuments);
         }
 
         [HttpPost("receipts")]
-        public async Task<IActionResult> CreateGoodsReceiptDocument([FromBody] CreateGoodsReceiptDocumentRequest request)
+        public async Task<IActionResult> CreateReceiptDocument([FromBody] CreateReceiptDocumentRequest request)
         {
-            var response = await _storageService.CreateGoodsReceiptDocumentAsync(request);
+            var response = await _storageService.CreateReceiptDocumentAsync(request);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPut("receipts")]
+        public async Task<IActionResult> UpdateReceiptDocument([FromBody] UpdateReceiptDocumentRequest request)
+        {
+            var response = await _storageService.UpdateReceiptDocumentAsync(request);
             return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpDelete("receipts/{documentId}")]
-        public async Task<IActionResult> DeleteGoodsReceiptDocument(int documentId)
+        public async Task<IActionResult> DeleteReceiptDocument(int documentId)
         {
-            var response = await _storageService.DeleteGoodsReceiptDocument(documentId);
+            var response = await _storageService.DeleteReceiptDocument(documentId);
             return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpGet("shipments")]
-        public async Task<IActionResult> GetGoodsIssueDocuments([FromQuery] DocumentFilterDto filters)
+        public async Task<IActionResult> GetShipmentDocuments([FromQuery] DocumentFilterDto filters)
         {
-            var goodsIssueDocuments = await _storageService.GetGoodsIssueDocumentsAsync(filters);
-            return Ok(goodsIssueDocuments);
+            var ShipmentDocuments = await _storageService.GetShipmentDocumentsAsync(filters);
+            return Ok(ShipmentDocuments);
         }
 
         [HttpPost("shipments")]
-        public async Task<IActionResult> CreateGoodsIssueDocument([FromBody] CreateGoodsIssueDocumentRequest request)
+        public async Task<IActionResult> CreateShipmentDocument([FromBody] CreateShipmentDocumentRequest request)
         {
-            var response = await _storageService.CreateGoodsIssueDocumentAsync(request);
+            var response = await _storageService.CreateShipmentDocumentAsync(request);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPut("shipments")]
+        public async Task<IActionResult> UpdateShipmentDocument([FromBody] UpdateShipmentDocumentRequest request)
+        {
+            var response = await _storageService.UpdateShipmentDocumentAsync(request);
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpDelete("shipments/{documentId}")]
+        public async Task<IActionResult> DeleteShipmentDocument(int documentId)
+        {
+            var response = await _storageService.DeleteShipmentDocumentAsync(documentId);
             return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPatch("shipments/sing/{documentId}")]
-        public async Task<IActionResult> SignGoodsIssueDocument(int documentId)
+        public async Task<IActionResult> SignShipmentDocument(int documentId)
         {
-            var response = await _storageService.SignGoodsIssueDocumentAsync(documentId);
+            var response = await _storageService.SignShipmentDocumentAsync(documentId);
             return StatusCode((int)response.StatusCode, response);
         }
 
         [HttpPatch("shipments/withdraw/{documentId}")]
-        public async Task<IActionResult> WithdrawGoodsIssueDocument(int documentId)
+        public async Task<IActionResult> WithdrawShipmentDocument(int documentId)
         {
-            var response = await _storageService.WithdrawGoodsIssueDocumentAsync(documentId);
+            var response = await _storageService.WithdrawShipmentDocumentAsync(documentId);
             return StatusCode((int)response.StatusCode, response);
         }
     }

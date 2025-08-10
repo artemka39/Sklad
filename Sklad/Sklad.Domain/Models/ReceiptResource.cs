@@ -7,16 +7,16 @@ using System.Threading.Tasks;
 
 namespace Sklad.Domain.Models
 {
-    public class InboundResource
+    public class ReceiptResource
     {
         public int Id { get; set; }
         public int ResourceId { get; set; }
         public virtual Resource Resource { get; set; }
-        public int UnitOfMeasurementId { get; set; }
-        public virtual UnitOfMeasurement UnitOfMeasurement { get; set; }
-        public int GoodsReceiptDocumentId { get; set; }
+        public int UnitId { get; set; }
+        public virtual Unit Unit { get; set; }
+        public int ReceiptDocumentId { get; set; }
         [JsonIgnore]
-        public virtual GoodsReceiptDocument GoodsReceiptDocument { get; set; }
-        public int Count { get; set; }
+        public virtual ReceiptDocument ReceiptDocument { get; set; }
+        public decimal Count { get; set; }
     }
 }

@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace Sklad.Contracts.Requests
 {
-    public class UpdateGoodsReceiptDocumentRequest
+    public class UpdateShipmentDocumentRequest
     {
         public int DocumentId { get; set; }
+        public int ClientId { get; set; }
         public List<ResourceDto> Resources { get; set; }
     }
 }

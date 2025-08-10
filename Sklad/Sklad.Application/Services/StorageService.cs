@@ -1,11 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Sklad.Application.Interfaces;
 using Sklad.Contracts.Dtos;
 using Sklad.Contracts.Requests;
 using Sklad.Contracts.Responses;
 using Sklad.Domain.Constants;
 using Sklad.Domain.Enums;
-using Sklad.Domain.Interfaces;
 using Sklad.Domain.Models;
 using Sklad.Persistence;
 using System;
@@ -24,28 +24,32 @@ namespace Sklad.Application.Services
     {
         private readonly SkladDbContext _dbContext;
         private readonly ILogger _logger;
+        private readonly IReadOnlyDictionary<MessageKeyEnum, string> _receiptDocumentMessages;
+        private readonly IReadOnlyDictionary<MessageKeyEnum, string> _shipmentDocumentMessages;
 
         public StorageService(SkladDbContext dbContext, ILogger logger)
         {
             _dbContext = dbContext;
             _logger = logger;
+            _receiptDocumentMessages = OperationResultMessages.GetMessagesFor(typeof(ReceiptDocument));
+            _shipmentDocumentMessages = OperationResultMessages.GetMessagesFor(typeof(ShipmentDocument));
         }
 
         public async Task<List<Balance>> GetStorageBalanceAsync(int? resourceId, int? unitId) =>
             await _dbContext.Balances
                 .Where(b => (!resourceId.HasValue || b.ResourceId == resourceId) &&
-                            (!unitId.HasValue || b.UnitOfMeasurementId == unitId))
+                            (!unitId.HasValue || b.UnitId == unitId))
                 .Include(b => b.Resource)
-                .Include(b => b.UnitOfMeasurement)
+                .Include(b => b.Unit)
                 .ToListAsync();
 
-        public async Task<List<GoodsReceiptDocument>> GetGoodsReceiptDocumentsAsync(DocumentFilterDto filters)
+        public async Task<List<ReceiptDocument>> GetReceiptDocumentsAsync(DocumentFilterDto filters)
         {
-            var documents = _dbContext.GoodsReceiptDocuments
-                .Include(d => d.InboundResources)
+            var documents = _dbContext.ReceiptDocuments
+                .Include(d => d.ReceiptResources)
                 .ThenInclude(r => r.Resource)
-                .Include(d => d.InboundResources)
-                .ThenInclude(r => r.UnitOfMeasurement)
+                .Include(d => d.ReceiptResources)
+                .ThenInclude(r => r.Unit)
                 .AsQueryable();
 
             if (filters != null)
@@ -54,10 +58,10 @@ namespace Sklad.Application.Services
                     documents = documents.Where(d => filters.DocumentNumbers.Contains(d.Number));
 
                 if (filters.ResourceIds?.Any() == true)
-                    documents = documents.Where(d => d.InboundResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
+                    documents = documents.Where(d => d.ReceiptResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
 
-                if (filters.UnitOfMeasurementIds?.Any() == true)
-                    documents = documents.Where(d => d.InboundResources.Any(or => filters.UnitOfMeasurementIds.Contains(or.UnitOfMeasurementId)));
+                if (filters.UnitIds?.Any() == true)
+                    documents = documents.Where(d => d.ReceiptResources.Any(or => filters.UnitIds.Contains(or.UnitId)));
 
                 if (filters.FromDate.HasValue)
                     documents = documents.Where(d => d.Date >= filters.FromDate.Value);
@@ -68,41 +72,41 @@ namespace Sklad.Application.Services
             return await documents.ToListAsync();
         }
 
-        public async Task<OperationResult<GoodsReceiptDocument>> CreateGoodsReceiptDocumentAsync(CreateGoodsReceiptDocumentRequest request)
+        public async Task<OperationResult<ReceiptDocument>> CreateReceiptDocumentAsync(CreateReceiptDocumentRequest request)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = new GoodsReceiptDocument
+                var document = new ReceiptDocument
                 {
-                    Number = GetDocumentNumber(typeof(GoodsReceiptDocument)),
+                    Number = GetDocumentNumber(typeof(ReceiptDocument)),
                     Date = DateTime.UtcNow,
                 };
 
-                await _dbContext.GoodsReceiptDocuments.AddAsync(document);
+                await _dbContext.ReceiptDocuments.AddAsync(document);
 
                 if (request.Resources.Any())
                 {
-                    await _dbContext.InboundResources.AddRangeAsync(request.Resources.Select(r =>
-                        new InboundResource
+                    await _dbContext.ReceiptResources.AddRangeAsync(request.Resources.Select(r =>
+                        new ReceiptResource
                         {
-                            GoodsReceiptDocument = document,
+                            ReceiptDocument = document,
                             ResourceId = r.ResourceId,
-                            UnitOfMeasurementId = r.UnitOfMeasurementId,
+                            UnitId = r.UnitId,
                             Count = r.Count
                         }));
 
                     foreach (var resource in request.Resources)
                     {
                         var balance = await _dbContext.Balances
-                            .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                            .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitId == resource.UnitId);
 
                         if (balance == null)
                         {
                             balance = new Balance
                             {
                                 ResourceId = resource.ResourceId,
-                                UnitOfMeasurementId = resource.UnitOfMeasurementId,
+                                UnitId = resource.UnitId,
                                 Count = 0
                             };
                             await _dbContext.Balances.AddAsync(balance);
@@ -116,54 +120,54 @@ namespace Sklad.Application.Services
 
                 await transaction.CommitAsync();
 
-                return new OperationResult<GoodsReceiptDocument>
+                return new OperationResult<ReceiptDocument>
                 {
                     StatusCode = HttpStatusCode.Created,
-                    Message = OperationResultMessages.GoodsReceiptDocumentCreated,
+                    Message = _receiptDocumentMessages[MessageKeyEnum.Created],
                     Data = document
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsReceiptDocumentCreationFailed);
-                return new OperationResult<GoodsReceiptDocument>
+                _logger.LogError(ex, _receiptDocumentMessages[MessageKeyEnum.CreationFailed]);
+                return new OperationResult<ReceiptDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsReceiptDocumentCreationFailed
+                    Message = _receiptDocumentMessages[MessageKeyEnum.CreationFailed]
                 };
             }
         }
 
-        public async Task<OperationResult<GoodsReceiptDocument>> UpdateGoodsReceiptDocumentAsync(UpdateGoodsReceiptDocumentRequest request)
+        public async Task<OperationResult<ReceiptDocument>> UpdateReceiptDocumentAsync(UpdateReceiptDocumentRequest request)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsReceiptDocuments
-                    .Include(d => d.InboundResources)
+                var document = await _dbContext.ReceiptDocuments
+                    .Include(d => d.ReceiptResources)
                     .FirstOrDefaultAsync(d => d.Id == request.DocumentId);
                 if (document == null)
                 {
-                    return new OperationResult<GoodsReceiptDocument>
+                    return new OperationResult<ReceiptDocument>
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsReceiptDocumentNotFound
+                        Message = _receiptDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
                 if (request.Resources != null && request.Resources.Any())
                 {
-                    foreach (var resource in document.InboundResources.ToList())
+                    foreach (var resource in document.ReceiptResources.ToList())
                     {
-                        var updatedResource = request.Resources.FirstOrDefault(r => r.ResourceId == resource.ResourceId && r.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                        var updatedResource = request.Resources.FirstOrDefault(r => r.ResourceId == resource.ResourceId && r.UnitId == resource.UnitId);
                         var balance = await _dbContext.Balances
-                            .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                            .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitId == resource.UnitId);
                         if (balance == null)
                         {
                             balance = new Balance
                             {
                                 ResourceId = resource.ResourceId,
-                                UnitOfMeasurementId = resource.UnitOfMeasurementId,
+                                UnitId = resource.UnitId,
                                 Count = 0
                             };
                             await _dbContext.Balances.AddAsync(balance);
@@ -176,10 +180,10 @@ namespace Sklad.Application.Services
                                 var deltaToRemove = Math.Abs(delta);
                                 if (balance.Count < deltaToRemove)
                                 {
-                                    return new OperationResult<GoodsReceiptDocument>
+                                    return new OperationResult<ReceiptDocument>
                                     {
                                         StatusCode = HttpStatusCode.BadRequest,
-                                        Message = OperationResultMessages.NotEnoughResource
+                                        Message = _receiptDocumentMessages[MessageKeyEnum.NotEnoughResource]
                                     };
                                 }
 
@@ -196,83 +200,83 @@ namespace Sklad.Application.Services
                         {
                             if (balance.Count < resource.Count)
                             {
-                                return new OperationResult<GoodsReceiptDocument>
+                                return new OperationResult<ReceiptDocument>
                                 {
                                     StatusCode = HttpStatusCode.BadRequest,
-                                    Message = OperationResultMessages.NotEnoughResource
+                                    Message = _receiptDocumentMessages[MessageKeyEnum.NotEnoughResource]
                                 };
                             }
                             balance.Count -= resource.Count;
-                            _dbContext.InboundResources.Remove(resource);
+                            _dbContext.ReceiptResources.Remove(resource);
                         }
                     }
-                    foreach (var newResource in request.Resources.Where(r => !document.InboundResources.Any(ir => ir.ResourceId == r.ResourceId && ir.UnitOfMeasurementId == r.UnitOfMeasurementId)))
+                    foreach (var newResource in request.Resources.Where(r => !document.ReceiptResources.Any(ir => ir.ResourceId == r.ResourceId && ir.UnitId == r.UnitId)))
                     {
                         var balance = await _dbContext.Balances
-                            .FirstOrDefaultAsync(b => b.ResourceId == newResource.ResourceId && b.UnitOfMeasurementId == newResource.UnitOfMeasurementId);
+                            .FirstOrDefaultAsync(b => b.ResourceId == newResource.ResourceId && b.UnitId == newResource.UnitId);
                         if (balance == null)
                         {
                             _dbContext.Balances.Add(new Balance
                             {
                                 ResourceId = newResource.ResourceId,
-                                UnitOfMeasurementId = newResource.UnitOfMeasurementId,
+                                UnitId = newResource.UnitId,
                                 Count = newResource.Count
                             });
                         }
-                        _dbContext.InboundResources.Add(new InboundResource
+                        _dbContext.ReceiptResources.Add(new ReceiptResource
                         {
-                            GoodsReceiptDocumentId = document.Id,
+                            ReceiptDocumentId = document.Id,
                             ResourceId = newResource.ResourceId,
-                            UnitOfMeasurementId = newResource.UnitOfMeasurementId,
+                            UnitId = newResource.UnitId,
                             Count = newResource.Count
                         });
                     }
                 }
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return new OperationResult<GoodsReceiptDocument>
+                return new OperationResult<ReceiptDocument>
                 {
                     StatusCode = HttpStatusCode.OK,
-                    Message = OperationResultMessages.GoodsReceiptDocumentUpdated,
+                    Message = _receiptDocumentMessages[MessageKeyEnum.Updated],
                     Data = document
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsReceiptDocumentUpdateFailed);
-                return new OperationResult<GoodsReceiptDocument>
+                _logger.LogError(ex, _receiptDocumentMessages[MessageKeyEnum.UpdateFailed]);
+                return new OperationResult<ReceiptDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsReceiptDocumentUpdateFailed
+                    Message = _receiptDocumentMessages[MessageKeyEnum.UpdateFailed]
                 };
             }
         }
 
-        public async Task<OperationResult> DeleteGoodsReceiptDocument(int documentId)
+        public async Task<OperationResult> DeleteReceiptDocument(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsReceiptDocuments
-                    .Include(d => d.InboundResources)
+                var document = await _dbContext.ReceiptDocuments
+                    .Include(d => d.ReceiptResources)
                     .FirstOrDefaultAsync(d => d.Id == documentId);
 
                 if (document != null)
                 {
-                    if (document.InboundResources.Any())
+                    if (document.ReceiptResources.Any())
                     {
-                        foreach (var resource in document.InboundResources)
+                        foreach (var resource in document.ReceiptResources)
                         {
                             var balance = await _dbContext.Balances
-                                .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                                .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitId == resource.UnitId);
 
                             if (balance == null || balance.Count < resource.Count)
                             {
                                 return new OperationResult
                                 {
                                     StatusCode = HttpStatusCode.BadRequest,
-                                    Message = OperationResultMessages.NotEnoughResource
+                                    Message = _receiptDocumentMessages[MessageKeyEnum.NotEnoughResource]
                                 };
                             }
                             else
@@ -280,15 +284,15 @@ namespace Sklad.Application.Services
                                 balance.Count -= resource.Count;
                             }
                         }
-                        _dbContext.InboundResources.RemoveRange(document.InboundResources);
+                        _dbContext.ReceiptResources.RemoveRange(document.ReceiptResources);
                     }
-                    _dbContext.GoodsReceiptDocuments.Remove(document);
+                    _dbContext.ReceiptDocuments.Remove(document);
                     await _dbContext.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return new OperationResult
                     {
                         StatusCode = HttpStatusCode.NoContent,
-                        Message = OperationResultMessages.GoodsReceiptDocumentDeleted
+                        Message = _receiptDocumentMessages[MessageKeyEnum.Deleted]
                     };
                 }
                 else
@@ -296,29 +300,29 @@ namespace Sklad.Application.Services
                     return new OperationResult
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsReceiptDocumentNotFound
+                        Message = _receiptDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsReceiptDocumentDeletionFailed);
+                _logger.LogError(ex, _receiptDocumentMessages[MessageKeyEnum.DeletionFailed]);
                 return new OperationResult
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsReceiptDocumentDeletionFailed
+                    Message = _receiptDocumentMessages[MessageKeyEnum.DeletionFailed]
                 };
             }
         }
 
-        public async Task<List<GoodsIssueDocument>> GetGoodsIssueDocumentsAsync(DocumentFilterDto filters)
+        public async Task<List<ShipmentDocument>> GetShipmentDocumentsAsync(DocumentFilterDto filters)
         {
-            var documents = _dbContext.GoodsIssueDocuments
-                .Include(d => d.OutboundResources)
+            var documents = _dbContext.ShipmentDocuments
+                .Include(d => d.ShipmentResources)
                 .ThenInclude(r => r.Resource)
-                .Include(d => d.OutboundResources)
-                .ThenInclude(r => r.UnitOfMeasurement)
+                .Include(d => d.ShipmentResources)
+                .ThenInclude(r => r.Unit)
                 .AsQueryable();
 
             if (filters != null)
@@ -327,10 +331,10 @@ namespace Sklad.Application.Services
                     documents = documents.Where(d => filters.DocumentNumbers.Contains(d.Number));
 
                 if (filters.ResourceIds?.Any() == true)
-                    documents = documents.Where(d => d.OutboundResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
+                    documents = documents.Where(d => d.ShipmentResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
 
-                if (filters.UnitOfMeasurementIds?.Any() == true)
-                    documents = documents.Where(d => d.OutboundResources.Any(or => filters.UnitOfMeasurementIds.Contains(or.UnitOfMeasurementId)));
+                if (filters.UnitIds?.Any() == true)
+                    documents = documents.Where(d => d.ShipmentResources.Any(or => filters.UnitIds.Contains(or.UnitId)));
 
                 if (filters.FromDate.HasValue)
                     documents = documents.Where(d => d.Date >= filters.FromDate.Value);
@@ -341,43 +345,43 @@ namespace Sklad.Application.Services
             return await documents.ToListAsync();
         }
 
-        public async Task<OperationResult<GoodsIssueDocument>> CreateGoodsIssueDocumentAsync(CreateGoodsIssueDocumentRequest request)
+        public async Task<OperationResult<ShipmentDocument>> CreateShipmentDocumentAsync(CreateShipmentDocumentRequest request)
         {
             if (request.Resources == null || !request.Resources.Any())
             {
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.BadRequest,
-                    Message = OperationResultMessages.NoResourcesProvided
+                    Message = _receiptDocumentMessages[MessageKeyEnum.NoResourcesProvided]  
                 };
             }
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = new GoodsIssueDocument
+                var document = new ShipmentDocument
                 {
-                    Number = GetDocumentNumber(typeof(GoodsIssueDocument)),
+                    Number = GetDocumentNumber(typeof(ShipmentDocument)),
                     Date = DateTime.UtcNow,
                     ClientId = request.ClientId,
                     State = DocumentStateEnum.NotSigned,
                 };
-                await _dbContext.GoodsIssueDocuments.AddAsync(document);
+                await _dbContext.ShipmentDocuments.AddAsync(document);
                 await _dbContext.SaveChangesAsync();
-                await _dbContext.OutboundResources.AddRangeAsync(request.Resources.Select(r =>
-                new OutboundResource
+                await _dbContext.ShipmentResources.AddRangeAsync(request.Resources.Select(r =>
+                new ShipmentResource
                 {
-                    GoodsIssueDocumentId = document.Id,
+                    ShipmentDocumentId = document.Id,
                     ResourceId = r.ResourceId,
-                    UnitOfMeasurementId = r.UnitOfMeasurementId,
+                    UnitId = r.UnitId,
                     Count = r.Count
                 }));
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.Created,
-                    Message = OperationResultMessages.GoodsIssueDocumentCreated,
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.Created],
                     Data = document
                 };
             }
@@ -385,152 +389,152 @@ namespace Sklad.Application.Services
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Ошибка создания документа отгрузки");
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsIssueDocumentCreationFailed
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.CreationFailed]
                 };
             }
         }
 
-        public async Task<OperationResult<GoodsIssueDocument>> UpdateGoodsIssueDocumentAsync(UpdateGoodsIssueDocumentRequest request)
+        public async Task<OperationResult<ShipmentDocument>> UpdateShipmentDocumentAsync(UpdateShipmentDocumentRequest request)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsIssueDocuments
-                    .Include(d => d.OutboundResources)
+                var document = await _dbContext.ShipmentDocuments
+                    .Include(d => d.ShipmentResources)
                     .FirstOrDefaultAsync(d => d.Id == request.DocumentId);
                 if (document == null)
                 {
-                    return new OperationResult<GoodsIssueDocument>
+                    return new OperationResult<ShipmentDocument>
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
                 if (request.Resources != null && request.Resources.Any())
                 {
-                    foreach (var resource in document.OutboundResources.ToList())
+                    foreach (var resource in document.ShipmentResources.ToList())
                     {
-                        var updatedResource = request.Resources.FirstOrDefault(r => r.ResourceId == resource.ResourceId && r.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                        var updatedResource = request.Resources.FirstOrDefault(r => r.ResourceId == resource.ResourceId && r.UnitId == resource.UnitId);
                         if (updatedResource != null)
                         {
                             resource.Count = updatedResource.Count;
                         }
                         else
                         {
-                            _dbContext.OutboundResources.Remove(resource);
+                            _dbContext.ShipmentResources.Remove(resource);
                         }
                     }
-                    foreach (var newResource in request.Resources.Where(r => !document.OutboundResources.Any(or => or.ResourceId == r.ResourceId && or.UnitOfMeasurementId == r.UnitOfMeasurementId)))
+                    foreach (var newResource in request.Resources.Where(r => !document.ShipmentResources.Any(or => or.ResourceId == r.ResourceId && or.UnitId == r.UnitId)))
                     {
-                        _dbContext.OutboundResources.Add(new OutboundResource
+                        _dbContext.ShipmentResources.Add(new ShipmentResource
                         {
-                            GoodsIssueDocumentId = document.Id,
+                            ShipmentDocumentId = document.Id,
                             ResourceId = newResource.ResourceId,
-                            UnitOfMeasurementId = newResource.UnitOfMeasurementId,
+                            UnitId = newResource.UnitId,
                             Count = newResource.Count
                         });
                     }
                 }
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.OK,
-                    Message = OperationResultMessages.GoodsIssueDocumentUpdated,
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.Updated],
                     Data = document
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsIssueDocumentUpdateFailed);
-                return new OperationResult<GoodsIssueDocument>
+                _logger.LogError(ex, _shipmentDocumentMessages[MessageKeyEnum.UpdateFailed]);
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsIssueDocumentUpdateFailed
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.UpdateFailed]
                 };
             }
         }
 
-        public async Task<OperationResult> DeleteGoodsIssueDocumentAsync(int documentId)
+        public async Task<OperationResult> DeleteShipmentDocumentAsync(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsIssueDocuments
-                    .Include(d => d.OutboundResources)
+                var document = await _dbContext.ShipmentDocuments
+                    .Include(d => d.ShipmentResources)
                     .FirstOrDefaultAsync(d => d.Id == documentId);
                 if (document == null)
                 {
                     return new OperationResult
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
-                var outboundResources = document.OutboundResources;
-                if (outboundResources.Any())
+                var ShipmentResources = document.ShipmentResources;
+                if (ShipmentResources.Any())
                 {
-                    _dbContext.OutboundResources.RemoveRange(outboundResources);
+                    _dbContext.ShipmentResources.RemoveRange(ShipmentResources);
                 }
-                _dbContext.GoodsIssueDocuments.Remove(document);
+                _dbContext.ShipmentDocuments.Remove(document);
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return new OperationResult
                 {
                     StatusCode = HttpStatusCode.NoContent,
-                    Message = OperationResultMessages.GoodsIssueDocumentDeleted
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.Deleted]
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsIssueDocumentDeletionFailed);
+                _logger.LogError(ex, _shipmentDocumentMessages[MessageKeyEnum.DeletionFailed]);
                 return new OperationResult
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsIssueDocumentDeletionFailed
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.DeletionFailed]
                 };
             }
         }
 
-        public async Task<OperationResult<GoodsIssueDocument>> SignGoodsIssueDocumentAsync(int documentId)
+        public async Task<OperationResult<ShipmentDocument>> SignShipmentDocumentAsync(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsIssueDocuments
-                    .Include(d => d.OutboundResources)
+                var document = await _dbContext.ShipmentDocuments
+                    .Include(d => d.ShipmentResources)
                     .FirstOrDefaultAsync(d => d.Id == documentId);
                 if (document == null)
                 {
-                    return new OperationResult<GoodsIssueDocument>
+                    return new OperationResult<ShipmentDocument>
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
                 if (document.State != DocumentStateEnum.Signed)
                 {
-                    return new OperationResult<GoodsIssueDocument>
+                    return new OperationResult<ShipmentDocument>
                     {
                         StatusCode = HttpStatusCode.BadRequest,
-                        Message = OperationResultMessages.GoodsIssueDocumentAlreadySigned
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.AlreadySigned]
                     };
                 }
-                foreach (var resource in document.OutboundResources)
+                foreach (var resource in document.ShipmentResources)
                 {
                     var balance = await _dbContext.Balances
-                        .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                        .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitId == resource.UnitId);
                     if (balance == null || balance.Count < resource.Count)
                     {
-                        return new OperationResult<GoodsIssueDocument>
+                        return new OperationResult<ShipmentDocument>
                         {
                             StatusCode = HttpStatusCode.BadRequest,
-                            Message = OperationResultMessages.NotEnoughResource
+                            Message = _receiptDocumentMessages[MessageKeyEnum.NotEnoughResource]
                         };
                     }
                     balance.Count -= resource.Count;
@@ -538,53 +542,53 @@ namespace Sklad.Application.Services
                 document.State = DocumentStateEnum.Signed;
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.OK,
-                    Message = OperationResultMessages.GoodsIssueDocumentSigned,
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.Signed],
                     Data = document
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, OperationResultMessages.GoodsIssueDocumentSigningFailed);
-                return new OperationResult<GoodsIssueDocument>
+                _logger.LogError(ex, _shipmentDocumentMessages[MessageKeyEnum.SigningFailed]);
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsIssueDocumentSigningFailed
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.SigningFailed]
                 };
             }
         }
 
-        public async Task<OperationResult<GoodsIssueDocument>> WithdrawGoodsIssueDocumentAsync(int documentId)
+        public async Task<OperationResult<ShipmentDocument>> WithdrawShipmentDocumentAsync(int documentId)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                var document = await _dbContext.GoodsIssueDocuments
-                    .Include(d => d.OutboundResources)
+                var document = await _dbContext.ShipmentDocuments
+                    .Include(d => d.ShipmentResources)
                     .FirstOrDefaultAsync(d => d.Id == documentId);
                 if (document == null)
                 {
-                    return new OperationResult<GoodsIssueDocument>
+                    return new OperationResult<ShipmentDocument>
                     {
                         StatusCode = HttpStatusCode.NotFound,
-                        Message = OperationResultMessages.GoodsIssueDocumentNotFound
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.NotFound]
                     };
                 }
                 if (document.State == DocumentStateEnum.Withdrawn)
                 {
-                    return new OperationResult<GoodsIssueDocument>
+                    return new OperationResult<ShipmentDocument>
                     {
                         StatusCode = HttpStatusCode.BadRequest,
-                        Message = OperationResultMessages.GoodsIssueDocumentAlreadyWithdrawn
+                        Message = _shipmentDocumentMessages[MessageKeyEnum.AlreadyWithdrawn]
                     };
                 }
-                foreach (var resource in document.OutboundResources)
+                foreach (var resource in document.ShipmentResources)
                 {
                     var balance = await _dbContext.Balances
-                        .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitOfMeasurementId == resource.UnitOfMeasurementId);
+                        .FirstOrDefaultAsync(b => b.ResourceId == resource.ResourceId && b.UnitId == resource.UnitId);
                     if (balance != null)
                     {
                         balance.Count += resource.Count;
@@ -593,10 +597,10 @@ namespace Sklad.Application.Services
                 document.State = DocumentStateEnum.Withdrawn;
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.OK,
-                    Message = OperationResultMessages.GoodsIssueDocumentWithdrawn,
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.Withdrawn],
                     Data = document
                 };
             }
@@ -604,10 +608,10 @@ namespace Sklad.Application.Services
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Ошибка подписания документа отгрузки");
-                return new OperationResult<GoodsIssueDocument>
+                return new OperationResult<ShipmentDocument>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Message = OperationResultMessages.GoodsIssueDocumentWithdrawalFailed
+                    Message = _shipmentDocumentMessages[MessageKeyEnum.WithdrawalFailed]
                 };
             }
         }
@@ -615,12 +619,12 @@ namespace Sklad.Application.Services
         private int GetDocumentNumber(Type type) =>
             type switch
             {
-                Type t when t == typeof(GoodsReceiptDocument) =>
-                    (_dbContext.GoodsReceiptDocuments
+                Type t when t == typeof(ReceiptDocument) =>
+                    (_dbContext.ReceiptDocuments
                     .OrderByDescending(d => d.Number)
                     .FirstOrDefault()?.Number ?? 0) + 1,
-                Type t when t == typeof(GoodsIssueDocument) =>
-                    (_dbContext.GoodsIssueDocuments
+                Type t when t == typeof(ShipmentDocument) =>
+                    (_dbContext.ShipmentDocuments
                     .OrderByDescending(d => d.Number)
                     .FirstOrDefault()?.Number ?? 0) + 1,
                 _ => throw new InvalidOperationException("Неизвестный тип документа")

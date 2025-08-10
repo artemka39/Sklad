@@ -16,12 +16,12 @@ namespace Sklad.Persistence
 
         public DbSet<Resource> Resources { get; set; }
         public DbSet<Balance> Balances { get; set; }
-        public DbSet<UnitOfMeasurement> UnitOfMeasurements { get; set; }
+        public DbSet<Unit> Units { get; set; }
         public DbSet<Client> Clients { get; set; }
-        public DbSet<GoodsIssueDocument> GoodsIssueDocuments { get; set; }
-        public DbSet<GoodsReceiptDocument> GoodsReceiptDocuments { get; set; }
-        public DbSet<InboundResource> InboundResources { get; set; }
-        public DbSet<OutboundResource> OutboundResources { get; set; }
+        public DbSet<ShipmentDocument> ShipmentDocuments { get; set; }
+        public DbSet<ReceiptDocument> ReceiptDocuments { get; set; }
+        public DbSet<ReceiptResource> ReceiptResources { get; set; }
+        public DbSet<ShipmentResource> ShipmentResources { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,7 +29,7 @@ namespace Sklad.Persistence
                 .HasIndex(r => r.Name)
                 .IsUnique();
 
-            modelBuilder.Entity<UnitOfMeasurement>()
+            modelBuilder.Entity<Unit>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
 
@@ -37,11 +37,11 @@ namespace Sklad.Persistence
                 .HasIndex(c => c.Name)
                 .IsUnique();
 
-            modelBuilder.Entity<GoodsReceiptDocument>()
+            modelBuilder.Entity<ReceiptDocument>()
                 .HasIndex(g => g.Number)
                 .IsUnique();
 
-            modelBuilder.Entity<GoodsIssueDocument>()
+            modelBuilder.Entity<ShipmentDocument>()
                 .HasIndex(g => g.Number)
                 .IsUnique();
 

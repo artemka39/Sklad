@@ -1,6 +1,6 @@
 using Sklad.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Sklad.Domain.Interfaces;
+using Sklad.Application.Interfaces;
 using Sklad.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +22,12 @@ builder.Services.AddDbContext<SkladDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ILogger, Logger<SkladDbContext>>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IResourceService, ResourceService>();
+builder.Services.AddScoped<IUnitService, UnitService>();
+builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IStorageService, StorageService>();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.  
@@ -39,6 +44,11 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseCors("AllowFrontend");
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.MapControllers();
 //app.UseAuthorization();

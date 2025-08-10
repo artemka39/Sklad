@@ -12,8 +12,8 @@ namespace Sklad.Domain.Models
         public int Id { get; set; }
         public int ResourceId { get; set; }
         public virtual Resource Resource { get; set; }
-        public int UnitOfMeasurementId { get; set; }
-        public virtual UnitOfMeasurement UnitOfMeasurement { get; set; }
-        public int Count { get; set; }
+        public int UnitId { get; set; }
+        public virtual Unit Unit { get; set; }
+        public decimal Count { get; set; }
     }
 }

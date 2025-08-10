@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sklad.Domain.Interfaces
+namespace Sklad.Domain.Models
 {
     public interface ICatalogEntity
     {

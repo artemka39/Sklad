@@ -9,7 +9,7 @@ namespace Sklad.Contracts.Dtos
     public class ResourceDto
     {
         public int ResourceId { get; set; }
-        public int UnitOfMeasurementId { get; set; }
-        public int Count { get; set; }
+        public int UnitId { get; set; }
+        public decimal Count { get; set; }
     }
 }
