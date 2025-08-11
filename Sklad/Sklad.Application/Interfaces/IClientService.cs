@@ -15,6 +15,8 @@ namespace Sklad.Application.Interfaces
         Task<OperationResult<Client>> CreateClientAsync(Client client);
         Task<OperationResult<Client>> UpdateClientAsync(Client client);
         Task<OperationResult> DeleteClientAsync(int clientId);
+        Task<OperationResult> DeleteMultipleClientsAsync(int[] clientIds);
         Task<OperationResult> ArchiveClientAsync(Client client);
+        Task<OperationResult> ArchiveMultipleClientsAsync(Client[] clients);
     }
 }

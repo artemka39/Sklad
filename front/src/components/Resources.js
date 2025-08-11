@@ -10,10 +10,11 @@ export const Resources = () => {
   const [editResourceId, setEditResourceId] = useState(null);
   const [editedName, setEditedName] = useState('');
   const [filterState, setFilterState] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const fetchResources = async () => {
     try {
-      const response = await axios.get('https://localhost:7024/api/catalog/resources', {
+      const response = await axios.get('https://localhost:7024/api/resources', {
         params: filterState ? { state: filterState } : {}
       });
       setResources(response.data);
@@ -28,7 +29,7 @@ export const Resources = () => {
 
   const handleAddResource = async () => {
     try {
-      const response = await axios.post('https://localhost:7024/api/catalog/resource', { name: newResourceName });
+      const response = await axios.post('https://localhost:7024/api/resources', { name: newResourceName });
       toast.success(response.data.message || 'Ресурс добавлен');
       setNewResourceName('');
       setIsModalOpen(false);
@@ -38,23 +39,34 @@ export const Resources = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы один ресурс для удаления');
+      return;
+    }
     try {
-      const response = await axios.delete(`https://localhost:7024/api/catalog/resource/${id}`);
-      toast.success(response.data.message || 'Ресурс удалён');
+      const response = await axios.post('https://localhost:7024/api/resources/delete', selectedIds);
+      toast.success(response.data.message || 'Ресурсы удалены');
+      setSelectedIds([]);
       fetchResources();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка удаления ресурса');
+      toast.error(error.response?.data?.message || 'Ошибка удаления ресурсов');
     }
   };
 
-  const handleArchive = async (resource) => {
+  const handleArchiveSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы один ресурс для архивирования');
+      return;
+    }
     try {
-      const response = await axios.patch(`https://localhost:7024/api/catalog/resource`, resource);
-      toast.success(response.data.message || 'Ресурс архивирован');
+      const resourcesToArchive = resources.filter(r => selectedIds.includes(r.id));
+      const response = await axios.post('https://localhost:7024/api/resources/archive', resourcesToArchive);
+      toast.success(response.data.message || 'Ресурсы архивированы');
+      setSelectedIds([]);
       fetchResources();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка архивирования ресурса');
+      toast.error(error.response?.data?.message || 'Ошибка архивирования ресурсов');
     }
   };
 
@@ -65,7 +77,7 @@ export const Resources = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const response = await axios.put('https://localhost:7024/api/catalog/resource', {
+      const response = await axios.put('https://localhost:7024/api/resources', {
         id: editResourceId,
         name: editedName
       });
@@ -108,17 +120,48 @@ export const Resources = () => {
       </select>
 
       <button onClick={fetchResources}>Применить фильтр</button>
+
+      <div style={{ margin: '20px 0' }}>
+        <button onClick={handleDeleteSelected}>Удалить выбранные</button>
+        <button onClick={handleArchiveSelected} style={{ marginLeft: '10px' }}>Архивировать выбранные</button>
+      </div>
+
       <table border="1" cellPadding="8" style={{ marginTop: '20px' }}>
         <thead>
           <tr>
+            <th>
+              <input
+                type="checkbox"
+                checked={resources.length > 0 && selectedIds.length === resources.length}
+                onChange={e => {
+                  if (e.target.checked) {
+                    setSelectedIds(resources.map(r => r.id));
+                  } else {
+                    setSelectedIds([]);
+                  }
+                }}
+              />
+            </th>
             <th>Название</th>
             <th>Состояние</th>
-            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
           {resources.map((res) => (
             <tr key={res.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(res.id)}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedIds([...selectedIds, res.id]);
+                    } else {
+                      setSelectedIds(selectedIds.filter(id => id !== res.id));
+                    }
+                  }}
+                />
+              </td>
               <td onDoubleClick={() => handleEdit(res.id, res.name)}>
                 {editResourceId === res.id ? (
                   <input
@@ -135,10 +178,6 @@ export const Resources = () => {
               </td>
               <td>
                 {stateLabels[res.state]}
-              </td>
-              <td>
-                <button onClick={() => handleDelete(res.id)}>Удалить</button>
-                <button onClick={() => handleArchive(res)}>Архивировать</button>
               </td>
             </tr>
           ))}

@@ -14,7 +14,9 @@ namespace Sklad.Application.Interfaces
         Task<List<Unit>> GetUnitsAsync(CatalogEntityStateEnum? state);
         Task<OperationResult<Unit>> CreateUnitAsync(Unit unit);
         Task<OperationResult<Unit>> UpdateUnitAsync(Unit unit);
-        Task<OperationResult> DeleteUnitAsync(int unit);
+        Task<OperationResult> DeleteUnitAsync(int unitId);
+        Task<OperationResult> DeleteMultipleUnitsAsync(int[] unitIds);
         Task<OperationResult> ArchiveUnitAsync(Unit unit);
+        Task<OperationResult> ArchiveMultipleUnitsAsync(Unit[] units);
     }
 }

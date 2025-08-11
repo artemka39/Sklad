@@ -32,72 +32,32 @@ namespace Sklad.Application.Services
         public async Task<List<Unit>> GetUnitsAsync(CatalogEntityStateEnum? state) =>
             await _dbContext.Units.Where(r => !state.HasValue || r.State == state.Value).ToListAsync();
 
-        public async Task<OperationResult<Unit>> CreateUnitAsync(Unit unit)
-        {
-            if (string.IsNullOrWhiteSpace(unit.Name))
-            {
-                return new OperationResult<Unit>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Message = _messages[MessageKeyEnum.NameRequired]
-                };
-            }
-            var result = await _catalogService.CreateCatalogEntityAsync(unit, _dbContext.Units, DisplayedClassNames.Unit);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.Created => _messages[MessageKeyEnum.Created],
-                HttpStatusCode.Conflict => _messages[MessageKeyEnum.AlreadyExists],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.CreationFailed],
-                _ => string.Empty
-            };
-            return result;
-        }
+        public async Task<OperationResult<Unit>> CreateUnitAsync(Unit unit) => 
+            await _catalogService.CreateCatalogEntityAsync(unit, _dbContext.Units);
 
-        public async Task<OperationResult<Unit>> UpdateUnitAsync(Unit unit)
-        {
-            if (string.IsNullOrWhiteSpace(unit.Name))
-            {
-                return new OperationResult<Unit>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Message = _messages[MessageKeyEnum.NameRequired]
-                };
-            }
-            try
-            {
-                _dbContext.Units.Update(unit);
-                await _dbContext.SaveChangesAsync();
-                return new OperationResult<Unit>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Message = _messages[MessageKeyEnum.Updated],
-                    Data = unit
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, _messages[MessageKeyEnum.UpdateFailed]);
-                return new OperationResult<Unit>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Message = _messages[MessageKeyEnum.UpdateFailed],
-                    Data = unit
-                };
-            }
-        }
+        public async Task<OperationResult<Unit>> UpdateUnitAsync(Unit unit) =>
+            await _catalogService.UpdateCatalogEntityAsync(unit, _dbContext.Units);
 
         public async Task<OperationResult> DeleteUnitAsync(int unitId)
         {
             try
             {
                 var unit = await _dbContext.Units.FindAsync(unitId);
-                var ReceiptResources = await _dbContext.ReceiptResources
+                if (unit == null)
+                {
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = _messages[MessageKeyEnum.NotFound]
+                    };
+                }
+                var receiptResources = await _dbContext.ReceiptResources
                     .Where(r => r.UnitId == unitId)
                     .ToListAsync();
-                var ShipmentResources = await _dbContext.ShipmentResources
+                var shipmentResources = await _dbContext.ShipmentResources
                     .Where(r => r.UnitId == unitId)
                     .ToListAsync();
-                if (ReceiptResources.Any() || ShipmentResources.Any())
+                if (receiptResources.Any() || shipmentResources.Any())
                 {
                     return new OperationResult
                     {
@@ -105,24 +65,7 @@ namespace Sklad.Application.Services
                         Message = _messages[MessageKeyEnum.InUse],
                     };
                 }
-                if (unit != null)
-                {
-                    _dbContext.Units.Remove(unit);
-                    await _dbContext.SaveChangesAsync();
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.OK,
-                        Message = _messages[MessageKeyEnum.Deleted],
-                    };
-                }
-                else
-                {
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.NotFound,
-                        Message = _messages[MessageKeyEnum.NotFound],
-                    };
-                }
+                return await _catalogService.DeleteCatalogEntityAsync(unit, _dbContext.Units);
             }
             catch (Exception ex)
             {
@@ -135,20 +78,25 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> ArchiveUnitAsync(Unit unit)
+        public async Task<OperationResult> DeleteMultipleUnitsAsync(int[] unitIds)
         {
-            var result = await _catalogService.ArchiveCatalogEntityAsync(unit, _dbContext.Units);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.OK => _messages[MessageKeyEnum.Archived],
-                HttpStatusCode.NotFound => _messages[MessageKeyEnum.NotFound],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.ArchiveFailed],
-                _ => string.Empty
-            };
-            return result;
+            var units = await _dbContext.Units
+                .Where(u => unitIds.Contains(u.Id))
+                .ToListAsync();
+            var notFoundCount = unitIds.Length - units.Count;
+            var inUseUnits = units
+                .Where(u =>
+                    _dbContext.ReceiptResources.Any(r => r.UnitId == u.Id) ||
+                    _dbContext.ShipmentResources.Any(r => r.UnitId == u.Id))
+                .ToList();
+            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Units, inUseUnits, units, notFoundCount);
         }
 
-        public async Task<OperationResult> ArchiveMultipleUnitAsync(Unit[] units) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(units, _dbContext.Units, ArchiveUnitAsync);
+
+        public async Task<OperationResult> ArchiveUnitAsync(Unit unit) => 
+            await _catalogService.ArchiveCatalogEntityAsync(unit, _dbContext.Units);
+
+        public async Task<OperationResult> ArchiveMultipleUnitsAsync(Unit[] units) =>
+            await _catalogService.ArchiveMultipleEntitiesAsync(units, _dbContext.Units);
     }
 }

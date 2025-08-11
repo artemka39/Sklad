@@ -50,14 +50,7 @@ namespace Sklad.Application.Services
                     Message = _messages[MessageKeyEnum.AddressRequired]
                 };
             }
-            var result = await _catalogService.CreateCatalogEntityAsync(client, _dbContext.Clients, DisplayedClassNames.Client);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.Created => _messages[MessageKeyEnum.Created],
-                HttpStatusCode.Conflict => _messages[MessageKeyEnum.AlreadyExists],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.CreationFailed],
-                _ => string.Empty
-            };
+            var result = await _catalogService.CreateCatalogEntityAsync(client, _dbContext.Clients);
             return result;
         }
 
@@ -79,26 +72,7 @@ namespace Sklad.Application.Services
                     Message = _messages[MessageKeyEnum.AddressRequired]
                 };
             }
-            try
-            {
-                _dbContext.Clients.Update(client);
-                await _dbContext.SaveChangesAsync();
-                return new OperationResult<Client>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Message = _messages[MessageKeyEnum.Created],
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, _messages[MessageKeyEnum.CreationFailed]);
-                return new OperationResult<Client>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Message = _messages[MessageKeyEnum.CreationFailed],
-                    Data = client,
-                };
-            }
+            return await _catalogService.UpdateCatalogEntityAsync(client, _dbContext.Clients);
         }
 
         public async Task<OperationResult> DeleteClientAsync(int clientId)
@@ -106,10 +80,18 @@ namespace Sklad.Application.Services
             try
             {
                 var client = await _dbContext.Clients.FindAsync(clientId);
-                var ShipmentDocuments = await _dbContext.ShipmentDocuments
+                if (client == null)
+                {
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = _messages[MessageKeyEnum.NotFound]
+                    };
+                }
+                var shipmentDocuments = await _dbContext.ShipmentDocuments
                     .Where(d => d.ClientId == clientId)
                     .ToListAsync();
-                if (ShipmentDocuments.Any())
+                if (shipmentDocuments.Any())
                 {
                     return new OperationResult
                     {
@@ -117,24 +99,7 @@ namespace Sklad.Application.Services
                         Message = _messages[MessageKeyEnum.InUse],
                     };
                 }
-                if (client != null)
-                {
-                    _dbContext.Clients.Remove(client);
-                    await _dbContext.SaveChangesAsync();
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.OK,
-                        Message = _messages[MessageKeyEnum.Deleted],
-                    };
-                }
-                else
-                {
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.NotFound,
-                        Message = _messages[MessageKeyEnum.NotFound],
-                    };
-                }
+                return await _catalogService.DeleteCatalogEntityAsync(client, _dbContext.Clients);
             }
             catch (Exception ex)
             {
@@ -147,56 +112,24 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> DeleteMultipleClientAsync(int[] clientIds)
+        public async Task<OperationResult> DeleteMultipleClientsAsync(int[] clientIds)
         {
-            var tasks = clientIds.Select(async id => await DeleteClientAsync(id));
-            var results = await Task.WhenAll(tasks);
-            var successCount = results.Count(r => r.StatusCode == HttpStatusCode.OK);
-            var conflictCount = results.Count(r => r.StatusCode == HttpStatusCode.Conflict);
-            var notFoundCount = results.Count(r => r.StatusCode == HttpStatusCode.NotFound);
-            var failureCount = results.Count(r => r.StatusCode == HttpStatusCode.InternalServerError);
-            var sb = new StringBuilder();
-            var statusCode = HttpStatusCode.InternalServerError;
-            if (failureCount > 0)
-            {
-                sb.AppendLine($"{_messages[MessageKeyEnum.DeletionFailed]}: {failureCount}");
-            }
-            if (notFoundCount > 0)
-            {
-                statusCode = HttpStatusCode.NotFound;
-                sb.AppendLine($"{_messages[MessageKeyEnum.NotFound]}: {notFoundCount}");
-            }
-            if (conflictCount > 0)
-            {
-                statusCode = HttpStatusCode.Conflict;
-                sb.AppendLine($"{_messages[MessageKeyEnum.InUse]}: {conflictCount}");
-            }
-            if (successCount > 0)
-            {
-                statusCode = HttpStatusCode.OK;
-                sb.AppendLine($"{_messages[MessageKeyEnum.Deleted]}: {successCount}");
-            }
-            return new OperationResult
-            {
-                StatusCode = statusCode,
-                Message = sb.ToString(),
-            };
+            var clients = await _dbContext.Clients
+                .Where(u => clientIds.Contains(u.Id))
+                .ToListAsync();
+            var notFoundCount = clientIds.Length - clients.Count;
+            var inUseClients = clients
+                .Where(r =>
+                    _dbContext.ShipmentDocuments.Any(d => d.ClientId == r.Id))
+                .ToList();
+            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Clients, inUseClients, clients, notFoundCount);
         }
 
-        public async Task<OperationResult> ArchiveClientAsync(Client client)
-        {
-            var result = await _catalogService.ArchiveCatalogEntityAsync(client, _dbContext.Clients);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.OK => _messages[MessageKeyEnum.Archived],
-                HttpStatusCode.NotFound => _messages[MessageKeyEnum.NotFound],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.ArchiveFailed],
-                _ => string.Empty
-            };
-            return result;
-        }
 
-        public async Task<OperationResult> ArchiveMultipleClientAsync(Client[] clients) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(clients, _dbContext.Clients, ArchiveClientAsync);
+        public async Task<OperationResult> ArchiveClientAsync(Client client) => 
+            await _catalogService.ArchiveCatalogEntityAsync(client, _dbContext.Clients);
+
+        public async Task<OperationResult> ArchiveMultipleClientsAsync(Client[] clients) =>
+            await _catalogService.ArchiveMultipleEntitiesAsync(clients, _dbContext.Clients);
     }
 }

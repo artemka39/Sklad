@@ -21,6 +21,9 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<SkladDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ILogger, Logger<SkladDbContext>>();
+builder.Services.AddScoped<IStorageService, StorageService>();
+builder.Services.AddScoped<IReceiptService, ReceiptService>();
+builder.Services.AddScoped<IShipmentService, ShipmentService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<IUnitService, UnitService>();

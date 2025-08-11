@@ -15,7 +15,8 @@ namespace Sklad.Application.Interfaces
         Task<OperationResult<Resource>> CreateResourceAsync(Resource resource);
         Task<OperationResult<Resource>> UpdateResourceAsync(Resource resource);
         Task<OperationResult> DeleteResourceAsync(int resourceId);
-        Task<OperationResult> DeleteMultipleResourceAsync(int[] resourceIds);
+        Task<OperationResult> DeleteMultipleResourcesAsync(int[] resourceIds);
         Task<OperationResult> ArchiveResourceAsync(Resource resource);
+        Task<OperationResult> ArchiveMultipleResourcesAsync(Resource[] resources);
     }
 }

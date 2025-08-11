@@ -12,10 +12,11 @@ export const Clients = () => {
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [filterState, setFilterState] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('https://localhost:7024/api/catalog/clients', {
+      const response = await axios.get('https://localhost:7024/api/clients', {
         params: filterState ? { state: filterState } : {}
       });
       setClients(response.data);
@@ -30,7 +31,7 @@ export const Clients = () => {
 
   const handleAdd = async () => {
     try {
-      const response = await axios.post('https://localhost:7024/api/catalog/client', {
+      const response = await axios.post('https://localhost:7024/api/clients', {
         name: newName,
         address: newAddress
       });
@@ -44,23 +45,34 @@ export const Clients = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы одного клиента для удаления');
+      return;
+    }
     try {
-      const response = await axios.delete(`https://localhost:7024/api/catalog/client/${id}`);
-      toast.success(response.data.message || 'Клиент удалён');
+      const response = await axios.post('https://localhost:7024/api/clients/delete', selectedIds);
+      toast.success(response.data.message || 'Клиенты удалены');
+      setSelectedIds([]);
       fetchClients();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка удаления клиента');
+      toast.error(error.response?.data?.message || 'Ошибка удаления клиентов');
     }
   };
 
-  const handleArchive = async (client) => {
+  const handleArchiveSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы одного клиента для архивирования');
+      return;
+    }
     try {
-      const response = await axios.patch(`https://localhost:7024/api/catalog/client`, client);
-      toast.success(response.data.message || 'Клиент архивирован');
+      const clientsToArchive = clients.filter(c => selectedIds.includes(c.id));
+      const response = await axios.post('https://localhost:7024/api/clients/archive', clientsToArchive);
+      toast.success(response.data.message || 'Клиенты архивированы');
+      setSelectedIds([]);
       fetchClients();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка архивирования клиента');
+      toast.error(error.response?.data?.message || 'Ошибка архивирования клиентов');
     }
   };
 
@@ -72,7 +84,7 @@ export const Clients = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const response = await axios.put(`https://localhost:7024/api/catalog/client`, {
+      const response = await axios.put(`https://localhost:7024/api/clients`, {
         id: editId,
         name: editName,
         address: editAddress
@@ -123,18 +135,49 @@ export const Clients = () => {
       </select>
 
       <button onClick={fetchClients}>Применить фильтр</button>
+
+      <div style={{ margin: '20px 0' }}>
+        <button onClick={handleDeleteSelected}>Удалить выбранные</button>
+        <button onClick={handleArchiveSelected} style={{ marginLeft: '10px' }}>Архивировать выбранные</button>
+      </div>
+
       <table border="1" cellPadding="8" style={{ marginTop: '20px' }}>
         <thead>
           <tr>
+            <th>
+              <input
+                type="checkbox"
+                checked={clients.length > 0 && selectedIds.length === clients.length}
+                onChange={e => {
+                  if (e.target.checked) {
+                    setSelectedIds(clients.map(c => c.id));
+                  } else {
+                    setSelectedIds([]);
+                  }
+                }}
+              />
+            </th>
             <th>Имя</th>
             <th>Адрес</th>
             <th>Состояние</th>
-            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
           {clients.map(client => (
             <tr key={client.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(client.id)}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedIds([...selectedIds, client.id]);
+                    } else {
+                      setSelectedIds(selectedIds.filter(id => id !== client.id));
+                    }
+                  }}
+                />
+              </td>
               <td onDoubleClick={() => handleEdit(client.id, client.name, client.address)}>
                 {editId === client.id ? (
                   <input
@@ -164,10 +207,6 @@ export const Clients = () => {
               </td>
               <td>
                 {stateLabels[client.state]}
-              </td>
-              <td>
-                <button onClick={() => handleDelete(client.id)}>Удалить</button>
-                <button onClick={() => handleArchive(client)}>Архивировать</button>
               </td>
             </tr>
           ))}

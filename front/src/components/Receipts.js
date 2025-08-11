@@ -12,7 +12,7 @@ export const Receipts = () => {
 
   const fetchReceipts = async () => {
     try {
-      const response = await fetch('https://localhost:7024/api/storage/receipts');
+      const response = await fetch('https://localhost:7024/api/receipts');
       const data = await response.json();
       setReceipts(data);
     } catch (error) {
@@ -23,8 +23,8 @@ export const Receipts = () => {
   const fetchResourcesAndUnits = async () => {
     try {
       const [resourcesRes, unitsRes] = await Promise.all([
-        fetch('https://localhost:7024/api/catalog/resources'),
-        fetch('https://localhost:7024/api/catalog/units')
+        fetch('https://localhost:7024/api/resources'),
+        fetch('https://localhost:7024/api/units')
       ]);
 
       const resourcesData = await resourcesRes.json();
@@ -69,7 +69,7 @@ export const Receipts = () => {
     if (!documentResources.length) return;
 
     try {
-      const response = await fetch('https://localhost:7024/api/storage/receipts', {
+      const response = await fetch('https://localhost:7024/api/receipts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resources: documentResources })

@@ -22,7 +22,7 @@ namespace Sklad.Domain.Constants
                 {
                     [WordFormKeyEnum.UpperNominative] = "Ресурс",
                     [WordFormKeyEnum.LowerGenitive] = "ресурса",
-                    [WordFormKeyEnum.Suffix] = "а"
+                    [WordFormKeyEnum.Suffix] = ""
                 },
                 [typeof(Client)] = new()
                 {

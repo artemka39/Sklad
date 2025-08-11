@@ -30,13 +30,20 @@ namespace Sklad.Application.Services
 
         public async Task<OperationResult<TEntity>> CreateCatalogEntityAsync<TEntity>(
             TEntity entity,
-            DbSet<TEntity> dbSet,
-            string entityDisplayName)
+            DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity
         {
+            var messages = GetMessages<TEntity>();
             try
             {
-                var messages = OperationResultMessages.GetMessagesFor(typeof(TEntity));
+                if (string.IsNullOrWhiteSpace(entity.Name))
+                {
+                    return new OperationResult<TEntity>
+                    {
+                        StatusCode = HttpStatusCode.BadRequest,
+                        Message = messages[MessageKeyEnum.NameRequired]
+                    };
+                }
                 var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
                 if (existingEntity == null)
                 {
@@ -46,6 +53,7 @@ namespace Sklad.Application.Services
                     return new OperationResult<TEntity>
                     {
                         StatusCode = HttpStatusCode.Created,
+                        Message = messages[MessageKeyEnum.Created],
                         Data = entity
                     };
                 }
@@ -54,30 +62,138 @@ namespace Sklad.Application.Services
                     return new OperationResult<TEntity>
                     {
                         StatusCode = HttpStatusCode.Conflict,
+                        Message = messages[MessageKeyEnum.AlreadyExists]
                     };
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при создании {entityDisplayName.ToLower()}");
+                _logger.LogError(ex, messages[MessageKeyEnum.CreationFailed]);
                 return new OperationResult<TEntity>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
+                    Message = messages[MessageKeyEnum.CreationFailed]
                 };
             }
         }
 
-        //public async Task<OperationResult> DeleteMultipleEntitiesAsync(
-        //    )
-        //{
+        public async Task<OperationResult<TEntity>> UpdateCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet) where TEntity : class, ICatalogEntity
+        {
+            var messages = GetMessages<TEntity>();
+            if (string.IsNullOrWhiteSpace(entity.Name))
+            {
+                return new OperationResult<TEntity>
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Message = messages[MessageKeyEnum.NameRequired]
+                };
+            }
+            try
+            {
+                dbSet.Update(entity);
+                await _dbContext.SaveChangesAsync();
+                return new OperationResult<TEntity>
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Data = entity,
+                    Message = messages[MessageKeyEnum.Updated]
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, messages[MessageKeyEnum.UpdateFailed]);
+                return new OperationResult<TEntity>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = messages[MessageKeyEnum.UpdateFailed]
+                };
+            }
+        }
 
-        //}
+        public async Task<OperationResult> DeleteCatalogEntityAsync<TEntity>(
+            TEntity entity, 
+            DbSet<TEntity> dbSet) where TEntity : class, ICatalogEntity
+        {
+            var messages = GetMessages<TEntity>();
+            try
+            {
+                if (entity != null)
+                {
+                    dbSet.Remove(entity);
+                    await _dbContext.SaveChangesAsync();
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                        Message = messages[MessageKeyEnum.Deleted],
+                    };
+                }
+                else
+                {
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.NotFound,
+                        Message = messages[MessageKeyEnum.NotFound],
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, messages[MessageKeyEnum.DeletionFailed]);
+                return new OperationResult
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Message = messages[MessageKeyEnum.DeletionFailed],
+                };
+            }
+        }
+
+        public async Task<OperationResult> DeleteMultipleEntitiesAsync<TEntity>(
+            DbSet<TEntity> dbSet,
+            List<TEntity> inUseEntities,
+            List<TEntity> entities,
+            int notFoundCount) where TEntity : class, ICatalogEntity
+        {
+            var messages = GetMessages<TEntity>();
+            var conflictCount = inUseEntities.Count;
+            var deletableEntities = entities.Except(inUseEntities).ToList();
+            var successCount = deletableEntities.Count;
+            if (successCount > 0)
+            {
+                dbSet.RemoveRange(deletableEntities);
+                await _dbContext.SaveChangesAsync();
+            }
+            var sb = new StringBuilder();
+            var statusCode = HttpStatusCode.InternalServerError;
+            if (notFoundCount > 0)
+            {
+                statusCode = HttpStatusCode.NotFound;
+                sb.AppendLine($"{messages[MessageKeyEnum.NotFound]}: {notFoundCount}");
+            }
+            if (conflictCount > 0)
+            {
+                statusCode = HttpStatusCode.Conflict;
+                sb.AppendLine($"{messages[MessageKeyEnum.InUse]}: {conflictCount}");
+            }
+            if (successCount > 0)
+            {
+                statusCode = HttpStatusCode.OK;
+                sb.AppendLine($"{messages[MessageKeyEnum.Deleted]}: {successCount}");
+            }
+            return new OperationResult
+            {
+                StatusCode = statusCode,
+                Message = sb.ToString()
+            };
+        }
 
         public async Task<OperationResult> ArchiveCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity
         {
+            var messages = GetMessages<TEntity>();
             try
             {
                 var set = _dbContext.Set<TEntity>();
@@ -89,36 +205,58 @@ namespace Sklad.Application.Services
                     return new OperationResult
                     {
                         StatusCode = HttpStatusCode.OK,
+                        Message = messages[MessageKeyEnum.Archived]
                     };
                 }
                 return new OperationResult
                 {
                     StatusCode = HttpStatusCode.NotFound,
+                    Message = messages[MessageKeyEnum.NotFound]
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при архивировании сущности {typeof(TEntity).Name}");
+                _logger.LogError(ex, messages[MessageKeyEnum.ArchiveFailed]);
                 return new OperationResult
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
+                    Message = messages[MessageKeyEnum.ArchiveFailed]
                 };
             }
         }
 
         public async Task<OperationResult> ArchiveMultipleEntitiesAsync<TEntity>(
             TEntity[] entities,
-            DbSet<TEntity> dbSet,
-            Func<TEntity, Task<OperationResult>> func) where TEntity : class, ICatalogEntity
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity
         {
             var messages = OperationResultMessages.GetMessagesFor(typeof(TEntity));
-            var tasks = entities.Select(async r => await func(r));
-            var results = await Task.WhenAll(tasks);
-            var successCount = results.Count(r => r.StatusCode == HttpStatusCode.OK);
-            var notFoundCount = results.Count(r => r.StatusCode == HttpStatusCode.NotFound);
-            var failureCount = results.Count(r => r.StatusCode == HttpStatusCode.InternalServerError);
+            var names = entities.Select(e => e.Name).Distinct().ToList();
+            var foundEntities = await dbSet
+                .Where(e => names.Contains(e.Name))
+                .ToListAsync();
+            var totalCount = names.Count;
+            var foundCount = foundEntities.Count;
+            var notFoundCount = totalCount - foundCount;
+            var failureCount = 0;
+            try
+            {
+                foreach (var entity in foundEntities)
+                {
+                    entity.State = CatalogEntityStateEnum.Archived;
+                }
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, messages[MessageKeyEnum.ArchiveFailed]);
+                failureCount = foundCount;
+                foundCount = 0;
+            }
+
             var sb = new StringBuilder();
             var statusCode = HttpStatusCode.InternalServerError;
+
             if (failureCount > 0)
             {
                 sb.AppendLine($"{messages[MessageKeyEnum.ArchiveFailed]}: {failureCount}");
@@ -128,10 +266,10 @@ namespace Sklad.Application.Services
                 statusCode = HttpStatusCode.NotFound;
                 sb.AppendLine($"{messages[MessageKeyEnum.NotFound]}: {notFoundCount}");
             }
-            if (successCount > 0)
+            if (foundCount > 0)
             {
                 statusCode = HttpStatusCode.OK;
-                sb.AppendLine($"{messages[MessageKeyEnum.Archived]}: {successCount}");
+                sb.AppendLine($"{messages[MessageKeyEnum.Archived]}: {foundCount}");
             }
             return new OperationResult
             {
@@ -139,5 +277,9 @@ namespace Sklad.Application.Services
                 Message = sb.ToString(),
             };
         }
+
+        private IReadOnlyDictionary<MessageKeyEnum, string> GetMessages<TEntity>()
+            => OperationResultMessages.GetMessagesFor(typeof(TEntity));
+
     }
 }

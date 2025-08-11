@@ -7,7 +7,7 @@ export const Shipments = () => {
 
   const fetchShipments = async () => {
     try {
-      const response = await fetch('https://localhost:7024/api/storage/shipments');
+      const response = await fetch('https://localhost:7024/api/shipments');
       const data = await response.json();
       setClients(data);
     } catch (error) {
@@ -24,7 +24,7 @@ export const Shipments = () => {
     if (!name.trim() || !address.trim()) return;
 
     try {
-      const response = await fetch('https://localhost:7024/api/storage/shipment', {
+      const response = await fetch('https://localhost:7024/api/shipments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

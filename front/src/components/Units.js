@@ -10,10 +10,11 @@ export const Units = () => {
   const [editId, setEditId] = useState(null);
   const [editName, setEditName] = useState('');
   const [filterState, setFilterState] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const fetchUnits = async () => {
     try {
-      const response = await axios.get('https://localhost:7024/api/catalog/units', {
+      const response = await axios.get('https://localhost:7024/api/units', {
         params: filterState ? { state: filterState } : {}
       });
       setUnits(response.data);
@@ -32,7 +33,7 @@ export const Units = () => {
       return;
     }
     try {
-      const response = await axios.post('https://localhost:7024/api/catalog/unit', { name: newUnitName });
+      const response = await axios.post('https://localhost:7024/api/units', { name: newUnitName });
       toast.success(response.data.message || 'Единица измерения добавлена');
       setNewUnitName('');
       setIsModalOpen(false);
@@ -42,23 +43,34 @@ export const Units = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы одну единицу для удаления');
+      return;
+    }
     try {
-      const response = await axios.delete(`https://localhost:7024/api/catalog/unit/${id}`);
-      toast.success(response.data.message || 'Единица измерения удалена');
+      const response = await axios.post('https://localhost:7024/api/units/delete', selectedIds);
+      toast.success(response.data.message || 'Единицы измерения удалены');
+      setSelectedIds([]);
       fetchUnits();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка удаления единицы измерения');
+      toast.error(error.response?.data?.message || 'Ошибка удаления единиц измерения');
     }
   };
 
-  const handleArchive = async (unit) => {
+  const handleArchiveSelected = async () => {
+    if (selectedIds.length === 0) {
+      toast.warn('Выберите хотя бы одну единицу для архивирования');
+      return;
+    }
     try {
-      const response = await axios.patch('https://localhost:7024/api/catalog/unit', unit);
-      toast.success(response.data.message || 'Единица измерения архивирована');
+      const unitsToArchive = units.filter(u => selectedIds.includes(u.id));
+      const response = await axios.post('https://localhost:7024/api/units/archive', unitsToArchive);
+      toast.success(response.data.message || 'Единицы измерения архивированы');
+      setSelectedIds([]);
       fetchUnits();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Ошибка архивирования единицы измерения');
+      toast.error(error.response?.data?.message || 'Ошибка архивирования единиц измерения');
     }
   };
 
@@ -73,7 +85,7 @@ export const Units = () => {
       return;
     }
     try {
-      const response = await axios.put('https://localhost:7024/api/catalog/unit', {
+      const response = await axios.put('https://localhost:7024/api/units', {
         id: editId,
         name: editName
       });
@@ -117,17 +129,48 @@ export const Units = () => {
       </select>
 
       <button onClick={fetchUnits}>Применить фильтр</button>
+
+      <div style={{ margin: '20px 0' }}>
+        <button onClick={handleDeleteSelected}>Удалить выбранные</button>
+        <button onClick={handleArchiveSelected} style={{ marginLeft: '10px' }}>Архивировать выбранные</button>
+      </div>
+
       <table border="1" cellPadding="8" style={{ marginTop: '20px' }}>
         <thead>
           <tr>
+            <th>
+              <input
+                type="checkbox"
+                checked={units.length > 0 && selectedIds.length === units.length}
+                onChange={e => {
+                  if (e.target.checked) {
+                    setSelectedIds(units.map(u => u.id));
+                  } else {
+                    setSelectedIds([]);
+                  }
+                }}
+              />
+            </th>
             <th>Название</th>
             <th>Состояние</th>
-            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
           {units.map(unit => (
             <tr key={unit.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(unit.id)}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setSelectedIds([...selectedIds, unit.id]);
+                    } else {
+                      setSelectedIds(selectedIds.filter(id => id !== unit.id));
+                    }
+                  }}
+                />
+              </td>
               <td onDoubleClick={() => handleEdit(unit.id, unit.name)}>
                 {editId === unit.id ? (
                   <input
@@ -144,10 +187,6 @@ export const Units = () => {
               </td>
               <td>
                 {stateLabels[unit.state]}
-              </td>
-              <td>
-                <button onClick={() => handleDelete(unit.id)}>Удалить</button>
-                <button onClick={() => handleArchive(unit)}>Архивировать</button>
               </td>
             </tr>
           ))}

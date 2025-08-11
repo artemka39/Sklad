@@ -16,15 +16,24 @@ namespace Sklad.Application.Interfaces
     {
         public Task<OperationResult<TEntity>> CreateCatalogEntityAsync<TEntity>(
             TEntity entity,
-            DbSet<TEntity> dbSet,
-            string entityDisplayName)
+            DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity;
 
-        //public async Task<OperationResult> DeleteMultipleEntitiesAsync(
-        //    )
-        //{
+        public Task<OperationResult<TEntity>> UpdateCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity;
 
-        //}
+        public Task<OperationResult> DeleteCatalogEntityAsync<TEntity>(
+            TEntity entity,
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity;
+
+        public Task<OperationResult> DeleteMultipleEntitiesAsync<TEntity>(
+            DbSet<TEntity> dbSet,
+            List<TEntity> inUseEntities,
+            List<TEntity> entities,
+            int notFoundCount) where TEntity : class, ICatalogEntity;
 
         public Task<OperationResult> ArchiveCatalogEntityAsync<TEntity>(
             TEntity entity,
@@ -33,8 +42,8 @@ namespace Sklad.Application.Interfaces
 
         public Task<OperationResult> ArchiveMultipleEntitiesAsync<TEntity>(
             TEntity[] entities,
-            DbSet<TEntity> dbSet,
-            Func<TEntity, Task<OperationResult>> func) where TEntity : class, ICatalogEntity;
+            DbSet<TEntity> dbSet) 
+            where TEntity : class, ICatalogEntity;
         
     }
 }

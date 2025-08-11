@@ -32,89 +32,18 @@ namespace Sklad.Application.Services
         public async Task<List<Resource>> GetResourcesAsync(CatalogEntityStateEnum? state) =>
             await _dbContext.Resources.Where(r => !state.HasValue || r.State == state.Value).ToListAsync();
 
-        public async Task<OperationResult<Resource>> CreateResourceAsync(Resource resource)
-        {
-            if (string.IsNullOrWhiteSpace(resource.Name))
-            {
-                return new OperationResult<Resource>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Message = _messages[MessageKeyEnum.NameRequired]
-                };
-            }
-            var result = await _catalogService.CreateCatalogEntityAsync(resource, _dbContext.Resources, DisplayedClassNames.Resource);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.Created => _messages[MessageKeyEnum.Created],
-                HttpStatusCode.Conflict => _messages[MessageKeyEnum.AlreadyExists],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.CreationFailed],
-                _ => string.Empty
-            };
-            return result;
-        }
+        public async Task<OperationResult<Resource>> CreateResourceAsync(Resource resource) => 
+            await _catalogService.CreateCatalogEntityAsync(resource, _dbContext.Resources);
 
-        public async Task<OperationResult<Resource>> UpdateResourceAsync(Resource resource)
-        {
-            if (string.IsNullOrWhiteSpace(resource.Name))
-            {
-                return new OperationResult<Resource>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Message = _messages[MessageKeyEnum.NameRequired]
-                };
-            }
-            try
-            {
-                _dbContext.Resources.Update(resource);
-                await _dbContext.SaveChangesAsync();
-                return new OperationResult<Resource>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = resource,
-                    Message = _messages[MessageKeyEnum.Updated]
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при обновлении ресурса с ID {resource.Id}");
-                return new OperationResult<Resource>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Message = _messages[MessageKeyEnum.UpdateFailed]
-                };
-            }
-        }
+        public async Task<OperationResult<Resource>> UpdateResourceAsync(Resource resource) =>
+            await _catalogService.UpdateCatalogEntityAsync(resource, _dbContext.Resources);
 
         public async Task<OperationResult> DeleteResourceAsync(int resourceId)
         {
             try
             {
                 var resource = await _dbContext.Resources.FindAsync(resourceId);
-                var ReceiptResources = await _dbContext.ReceiptResources
-                    .Where(r => r.ResourceId == resourceId)
-                    .ToListAsync();
-                var ShipmentResources = await _dbContext.ShipmentResources
-                    .Where(r => r.ResourceId == resourceId)
-                    .ToListAsync();
-                if (ReceiptResources.Any() || ShipmentResources.Any())
-                {
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.Conflict,
-                        Message = _messages[MessageKeyEnum.InUse]
-                    };
-                }
-                if (resource != null)
-                {
-                    _dbContext.Resources.Remove(resource);
-                    await _dbContext.SaveChangesAsync();
-                    return new OperationResult
-                    {
-                        StatusCode = HttpStatusCode.OK,
-                        Message = _messages[MessageKeyEnum.Deleted]
-                    };
-                }
-                else
+                if (resource == null)
                 {
                     return new OperationResult
                     {
@@ -122,6 +51,21 @@ namespace Sklad.Application.Services
                         Message = _messages[MessageKeyEnum.NotFound]
                     };
                 }
+                var receiptResources = await _dbContext.ReceiptResources
+                    .Where(r => r.ResourceId == resourceId)
+                    .ToListAsync();
+                var shipmentResources = await _dbContext.ShipmentResources
+                    .Where(r => r.ResourceId == resourceId)
+                    .ToListAsync();
+                if (receiptResources.Any() || shipmentResources.Any())
+                {
+                    return new OperationResult
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                        Message = _messages[MessageKeyEnum.InUse]
+                    };
+                }
+                return await _catalogService.DeleteCatalogEntityAsync(resource, _dbContext.Resources);
             }
             catch (Exception ex)
             {
@@ -134,56 +78,24 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> DeleteMultipleResourceAsync(int[] resourceIds)
+        public async Task<OperationResult> DeleteMultipleResourcesAsync(int[] resourceIds)
         {
-            var tasks = resourceIds.Select(async id => await DeleteResourceAsync(id));
-            var results = await Task.WhenAll(tasks);
-            var successCount = results.Count(r => r.StatusCode == HttpStatusCode.OK);
-            var conflictCount = results.Count(r => r.StatusCode == HttpStatusCode.Conflict);
-            var notFoundCount = results.Count(r => r.StatusCode == HttpStatusCode.NotFound);
-            var failureCount = results.Count(r => r.StatusCode == HttpStatusCode.InternalServerError);
-            var sb = new StringBuilder();
-            var statusCode = HttpStatusCode.InternalServerError;
-            if (failureCount > 0)
-            {
-                sb.AppendLine($"{_messages[MessageKeyEnum.DeletionFailed]}: {failureCount}");
-            }
-            if (notFoundCount > 0)
-            {
-                statusCode = HttpStatusCode.NotFound;
-                sb.AppendLine($"{_messages[MessageKeyEnum.NotFound]}: {notFoundCount}");
-            }
-            if (conflictCount > 0)
-            {
-                statusCode = HttpStatusCode.Conflict;
-                sb.AppendLine($"{_messages[MessageKeyEnum.InUse]}: {conflictCount}");
-            }
-            if (successCount > 0)
-            {
-                statusCode = HttpStatusCode.OK;
-                sb.AppendLine($"{_messages[MessageKeyEnum.Deleted]}: {successCount}");
-            }
-            return new OperationResult
-            {
-                StatusCode = statusCode,
-                Message = sb.ToString(),
-            };
+            var resources = await _dbContext.Resources
+                .Where(r => resourceIds.Contains(r.Id))
+                .ToListAsync();
+            var notFoundCount = resourceIds.Length - resources.Count;
+            var inUseResources = resources
+                .Where(r =>
+                    _dbContext.ReceiptResources.Any(rr => rr.ResourceId == r.Id) ||
+                    _dbContext.ShipmentResources.Any(rs => rs.ResourceId == r.Id))
+                .ToList();
+            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Resources, inUseResources, resources, notFoundCount);
         }
 
-        public async Task<OperationResult> ArchiveResourceAsync(Resource resource)
-        {
-            var result = await _catalogService.ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
-            result.Message = result.StatusCode switch
-            {
-                HttpStatusCode.OK => _messages[MessageKeyEnum.Archived],
-                HttpStatusCode.NotFound => _messages[MessageKeyEnum.NotFound],
-                HttpStatusCode.InternalServerError => _messages[MessageKeyEnum.ArchiveFailed],
-                _ => string.Empty
-            };
-            return result;
-        }
+        public async Task<OperationResult> ArchiveResourceAsync(Resource resource) => 
+            await _catalogService.ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
 
-        public async Task<OperationResult> ArchiveMultipleResourceAsync(Resource[] resources) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(resources, _dbContext.Resources, ArchiveResourceAsync);
+        public async Task<OperationResult> ArchiveMultipleResourcesAsync(Resource[] resources) =>
+            await _catalogService.ArchiveMultipleEntitiesAsync(resources, _dbContext.Resources);
     }
 }
