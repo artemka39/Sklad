@@ -1,165 +1,195 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { ReceiptModal } from "./ReceiptModal";
 
 export const Receipts = () => {
-  const [receipts, setReceipts] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [resources, setResources] = useState([]);
   const [units, setUnits] = useState([]);
 
-  const [selectedResourceId, setSelectedResourceId] = useState('');
-  const [selectedUnitId, setSelectedUnitId] = useState('');
-  const [count, setCount] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [documentResources, setDocumentResources] = useState([]);
+
+  const [editDocId, setEditDocId] = useState(null);
+  const [editDocNumber, setEditDocNumber] = useState("");
+  const [editDocResources, setEditDocResources] = useState([]);
 
   const fetchReceipts = async () => {
     try {
-      const response = await fetch('https://localhost:7024/api/receipts');
-      const data = await response.json();
-      setReceipts(data);
-    } catch (error) {
-      console.error('Ошибка загрузки поступлений:', error);
+      const response = await axios.get("https://localhost:7024/api/receipts");
+      setDocuments(response.data);
+    } catch {
+      toast.error("Ошибка загрузки поступлений");
     }
   };
 
-  const fetchResourcesAndUnits = async () => {
+  const fetchCatalogs = async () => {
     try {
       const [resourcesRes, unitsRes] = await Promise.all([
-        fetch('https://localhost:7024/api/resources'),
-        fetch('https://localhost:7024/api/units')
+        axios.get("https://localhost:7024/api/resources"),
+        axios.get("https://localhost:7024/api/units"),
       ]);
-
-      const resourcesData = await resourcesRes.json();
-      const unitsData = await unitsRes.json();
-
-      setResources(resourcesData);
-      setUnits(unitsData);
-    } catch (error) {
-      console.error('Ошибка загрузки справочников:', error);
+      setResources(resourcesRes.data.filter(r => r.state === 1));
+      setUnits(unitsRes.data.filter(u => u.state === 1));
+    } catch {
+      toast.error("Ошибка загрузки справочников");
     }
   };
 
   useEffect(() => {
     fetchReceipts();
-    fetchResourcesAndUnits();
+    fetchCatalogs();
   }, []);
 
-  const handleAddResource = (e) => {
-    e.preventDefault();
-    if (!selectedResourceId || !selectedUnitId || !count) return;
-
-    const existing = documentResources.find(
-      r => r.resourceId === selectedResourceId && r.unitOfMeasurementId === selectedUnitId
-    );
-    if (existing) {
-      alert('Такая комбинация ресурса и единицы уже добавлена');
-      return;
+  const handleCreateDocument = async () => {
+    try {
+      await axios.post("https://localhost:7024/api/receipts", {
+        resources: documentResources,
+      });
+      toast.success("Документ поступления создан");
+      setIsCreateModalOpen(false);
+      setDocumentResources([]);
+      fetchReceipts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Ошибка создания документа");
     }
-
-    setDocumentResources([...documentResources, {
-      resourceId: selectedResourceId,
-      unitOfMeasurementId: selectedUnitId,
-      count: Number(count)
-    }]);
-
-    setSelectedResourceId('');
-    setSelectedUnitId('');
-    setCount('');
   };
 
-  const handleSubmitDocument = async () => {
-    if (!documentResources.length) return;
-
+  const handleUpdateDocument = async () => {
     try {
-      const response = await fetch('https://localhost:7024/api/receipts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resources: documentResources })
+      await axios.put("https://localhost:7024/api/receipts", {
+        documentId: editDocId,
+        resources: editDocResources,
       });
-
-      if (response.ok) {
-        setDocumentResources([]);
-        fetchReceipts();
-      } else {
-        console.error('Ошибка создания документа');
-      }
+      toast.success("Документ обновлён");
+      closeEditModal();
+      fetchReceipts();
     } catch (error) {
-      console.error('Ошибка при отправке:', error);
+      toast.error(error.response?.data?.message || "Ошибка обновления документа");
     }
+  };
+
+  const handleDeleteDocument = async (id) => {
+    try {
+      await axios.delete(`https://localhost:7024/api/receipts/${id}`);
+      toast.success("Документ удалён");
+      closeEditModal();
+      fetchReceipts();
+    } catch {
+      toast.error("Ошибка удаления документа");
+    }
+  };
+
+  const openCreateModal = () => {
+    setDocumentResources([]);
+    setIsCreateModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setEditDocId(null);
+    setEditDocNumber("");
+    setEditDocResources([]);
+  };
+
+  const openEditModal = (doc) => {
+    setEditDocId(doc.id);
+    setEditDocNumber(doc.number);
+    setEditDocResources(
+      (doc.receiptResources || []).map(r => ({
+        id: r.id,
+        resourceId: r.resource?.id,
+        unitId: r.unit?.id,
+        count: r.count,
+      }))
+    );
   };
 
   return (
     <div>
-      <h2>Поступления</h2>
+      <h2>Документы поступления</h2>
+      <button onClick={openCreateModal} style={{ marginBottom: 20 }}>
+        Создать документ
+      </button>
 
-      <form onSubmit={handleAddResource} style={{ marginBottom: '10px' }}>
-        <select value={selectedResourceId} onChange={e => setSelectedResourceId(e.target.value)}>
-          <option value="">Выберите ресурс</option>
-          {resources.map(r => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
+      <ReceiptModal
+        title="Создать документ поступления"
+        isOpen={isCreateModalOpen}
+        items={documentResources}
+        resources={resources}
+        units={units}
+        onChange={(i, f, v) => {
+          const updated = [...documentResources];
+          updated[i][f] = v;
+          setDocumentResources(updated);
+        }}
+        onRemove={(i) => setDocumentResources(documentResources.filter((_, idx) => idx !== i))}
+        onAddRow={() => setDocumentResources([...documentResources, { resourceId: "", unitId: "", count: "" }])}
+        onSave={handleCreateDocument}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
 
-        <select value={selectedUnitId} onChange={e => setSelectedUnitId(e.target.value)}>
-          <option value="">Выберите единицу</option>
-          {units.map(u => (
-            <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
-        </select>
+      <ReceiptModal
+        title={`Редактировать документ №${editDocNumber}`}
+        isOpen={editDocId !== null}
+        items={editDocResources}
+        resources={resources}
+        units={units}
+        onChange={(i, f, v) => {
+          const updated = [...editDocResources];
+          updated[i][f] = v;
+          setEditDocResources(updated);
+        }}
+        onRemove={(i) => setEditDocResources(editDocResources.filter((_, idx) => idx !== i))}
+        onAddRow={() => setEditDocResources([...editDocResources, { resourceId: "", unitId: "", count: "" }])}
+        onSave={handleUpdateDocument}
+        onClose={closeEditModal}
+        onDelete={() => handleDeleteDocument(editDocId)}
+      />
 
-        <input
-          type="number"
-          min="1"
-          value={count}
-          onChange={e => setCount(e.target.value)}
-          placeholder="Количество"
-        />
-        <button type="submit">Добавить позицию</button>
-      </form>
+      <table border="1" cellPadding="8">
+        <thead>
+          <tr>
+            <th>Номер</th>
+            <th>Дата</th>
+            <th>Ресурс</th>
+            <th>Единица</th>
+            <th>Количество</th>
+          </tr>
+        </thead>
+        <tbody>
+          {documents.flatMap(doc =>
+            (doc.receiptResources?.length > 0
+              ? doc.receiptResources.map((res, idx) => (
+                  <tr key={doc.id + "-" + res.id} onDoubleClick={() => openEditModal(doc)}>
+                    {idx === 0 && (
+                      <>
+                        <td rowSpan={doc.receiptResources.length}>{doc.number}</td>
+                        <td rowSpan={doc.receiptResources.length}>
+                          {new Date(doc.date).toLocaleDateString()}
+                        </td>
+                      </>
+                    )}
+                    <td>{res.resource?.name}</td>
+                    <td>{res.unit?.name}</td>
+                    <td>{res.count}</td>
+                  </tr>
+                ))
+              : [
+                  <tr key={doc.id} onDoubleClick={() => openEditModal(doc)}>
+                    <td>{doc.number}</td>
+                    <td>{new Date(doc.date).toLocaleDateString()}</td>
+                    <td colSpan={3} style={{ textAlign: "center", fontStyle: "italic" }}>
+                      Нет ресурсов
+                    </td>
+                  </tr>,
+                ])
+          )}
+        </tbody>
+      </table>
 
-      {documentResources.length > 0 && (
-        <div style={{ marginBottom: '20px' }}>
-          <h4>Добавленные ресурсы:</h4>
-          <ul>
-            {documentResources.map((r, idx) => {
-              const resName = resources.find(x => x.id === r.resourceId)?.name;
-              const unitName = units.find(x => x.id === r.unitOfMeasurementId)?.name;
-              return (
-                <li key={idx}>
-                  {resName} — {r.count} {unitName}
-                </li>
-              );
-            })}
-          </ul>
-          <button onClick={handleSubmitDocument}>Создать документ</button>
-        </div>
-      )}
-
-      <h3>Список документов поступления</h3>
-<table border="1" cellPadding="8">
-  <thead>
-    <tr>
-      <th>Номер документа</th>
-      <th>Дата</th>
-      <th>Ресурс</th>
-      <th>Количество</th>
-      <th>Ед. измерения</th>
-    </tr>
-  </thead>
-  <tbody>
-    {receipts.flatMap(receipt =>
-      (receipt.inboundResources || []).map(res => (
-        <tr key={`${receipt.id}-${res.id}`}>
-          <td>{receipt.number}</td>
-          <td>{new Date(receipt.date).toLocaleDateString()}</td>
-          <td>{res.resource?.name}</td>
-          <td>{res.count}</td>
-          <td>{res.unitOfMeasurement?.name}</td>
-        </tr>
-      ))
-    )}
-  </tbody>
-
-</table>
-
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
     </div>
   );
 };

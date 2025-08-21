@@ -22,30 +22,35 @@ namespace Sklad.Domain.Constants
                 {
                     [WordFormKeyEnum.UpperNominative] = "Ресурс",
                     [WordFormKeyEnum.LowerGenitive] = "ресурса",
+                    [WordFormKeyEnum.LowerGenitivePlural] = "ресурсов",
                     [WordFormKeyEnum.Suffix] = ""
                 },
                 [typeof(Client)] = new()
                 {
                     [WordFormKeyEnum.UpperNominative] = "Клиент",
                     [WordFormKeyEnum.LowerGenitive] = "клиента",
+                    [WordFormKeyEnum.LowerGenitivePlural] = "клиентов",
                     [WordFormKeyEnum.Suffix] = ""
                 },
                 [typeof(Unit)] = new()
                 {
                     [WordFormKeyEnum.UpperNominative] = "Единица измерения",
                     [WordFormKeyEnum.LowerGenitive] = "единицы измерения",
+                    [WordFormKeyEnum.LowerGenitivePlural] = "единиц измерения",
                     [WordFormKeyEnum.Suffix] = "а"
                 },
                 [typeof(ReceiptDocument)] = new()
                 {
                     [WordFormKeyEnum.UpperNominative] = "Документ поступления",
                     [WordFormKeyEnum.LowerGenitive] = "документа поступления",
+                    [WordFormKeyEnum.LowerGenitivePlural] = "документов поступления",
                     [WordFormKeyEnum.Suffix] = ""
                 },
                 [typeof(ShipmentDocument)] = new()
                 {
                     [WordFormKeyEnum.UpperNominative] = "Документ отгрузки",
                     [WordFormKeyEnum.LowerGenitive] = "документа отгрузки",
+                    [WordFormKeyEnum.LowerGenitivePlural] = "документов отгрузки",
                     [WordFormKeyEnum.Suffix] = ""
                 }
             };
@@ -60,6 +65,8 @@ namespace Sklad.Domain.Constants
                     var suffix = forms[WordFormKeyEnum.Suffix];
                     return new Dictionary<MessageKeyEnum, string>
                     {
+                        [MessageKeyEnum.Loaded] = $"{forms[WordFormKeyEnum.UpperNominative]} успешно загружены",
+                        [MessageKeyEnum.LoadingFailed] = $"Ошибка загрузки {forms[WordFormKeyEnum.LowerGenitivePlural]}",
                         [MessageKeyEnum.Created] = $"{forms[WordFormKeyEnum.UpperNominative]} успешно создан{suffix}",
                         [MessageKeyEnum.NameRequired] = $"Имя {forms[WordFormKeyEnum.LowerGenitive]} обязательно для заполнения",
                         [MessageKeyEnum.AddressRequired] = $"Адрес {forms[WordFormKeyEnum.LowerGenitive]} обязателен для заполнения",

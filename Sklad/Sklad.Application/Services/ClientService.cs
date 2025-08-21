@@ -30,7 +30,7 @@ namespace Sklad.Application.Services
         }
 
         public async Task<List<Client>> GetClientsAsync(CatalogEntityStateEnum? state) =>
-            await _dbContext.Clients.Where(r => !state.HasValue || r.State == state.Value).ToListAsync();
+            await _catalogService.GetCatalogEntitiesAsync(state, _dbContext.Clients);
 
         public async Task<OperationResult<Client>> CreateClientAsync(Client client)
         {
@@ -112,24 +112,7 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> DeleteMultipleClientsAsync(int[] clientIds)
-        {
-            var clients = await _dbContext.Clients
-                .Where(u => clientIds.Contains(u.Id))
-                .ToListAsync();
-            var notFoundCount = clientIds.Length - clients.Count;
-            var inUseClients = clients
-                .Where(r =>
-                    _dbContext.ShipmentDocuments.Any(d => d.ClientId == r.Id))
-                .ToList();
-            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Clients, inUseClients, clients, notFoundCount);
-        }
-
-
         public async Task<OperationResult> ArchiveClientAsync(Client client) => 
             await _catalogService.ArchiveCatalogEntityAsync(client, _dbContext.Clients);
-
-        public async Task<OperationResult> ArchiveMultipleClientsAsync(Client[] clients) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(clients, _dbContext.Clients);
     }
 }

@@ -14,6 +14,11 @@ namespace Sklad.Application.Interfaces
 {
     public interface ICatalogService
     {
+        public Task<List<TEntity>> GetCatalogEntitiesAsync<TEntity>(
+            CatalogEntityStateEnum? state,
+            DbSet<TEntity> dbSet)
+            where TEntity : class, ICatalogEntity;
+
         public Task<OperationResult<TEntity>> CreateCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet)
@@ -29,21 +34,9 @@ namespace Sklad.Application.Interfaces
             DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity;
 
-        public Task<OperationResult> DeleteMultipleEntitiesAsync<TEntity>(
-            DbSet<TEntity> dbSet,
-            List<TEntity> inUseEntities,
-            List<TEntity> entities,
-            int notFoundCount) where TEntity : class, ICatalogEntity;
-
         public Task<OperationResult> ArchiveCatalogEntityAsync<TEntity>(
             TEntity entity,
             DbSet<TEntity> dbSet)
             where TEntity : class, ICatalogEntity;
-
-        public Task<OperationResult> ArchiveMultipleEntitiesAsync<TEntity>(
-            TEntity[] entities,
-            DbSet<TEntity> dbSet) 
-            where TEntity : class, ICatalogEntity;
-        
     }
 }

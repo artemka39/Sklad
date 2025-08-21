@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Sklad.Application.Interfaces;
+using Sklad.Application.Services;
 using Sklad.Domain.Enums;
 using Sklad.Domain.Models;
 
@@ -14,6 +15,7 @@ namespace Sklad.Api.Controllers
         {
             _unitService = unitService;
         }
+
         [HttpGet]
         public async Task<IActionResult> GetUnits([FromQuery] CatalogEntityStateEnum? state)
         {
@@ -42,17 +44,10 @@ namespace Sklad.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpPost("delete")]
-        public async Task<IActionResult> DeleteMultipleUnits([FromBody] int[] ids)
-        {
-            var response = await _unitService.DeleteMultipleUnitsAsync(ids);
-            return StatusCode((int)response.StatusCode, response);
-        }
-
         [HttpPost("archive")]
-        public async Task<IActionResult> ArchiveMultipleUnits([FromBody] Unit[] units)
+        public async Task<IActionResult> ArchiveUnit([FromBody] Unit unit)
         {
-            var response = await _unitService.ArchiveMultipleUnitsAsync(units);
+            var response = await _unitService.ArchiveUnitAsync(unit);
             return StatusCode((int)response.StatusCode, response);
         }
     }

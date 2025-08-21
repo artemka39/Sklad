@@ -10,6 +10,7 @@ namespace Sklad.Domain.Enums
     {
         UpperNominative,
         LowerGenitive,
-        Suffix
+        LowerGenitivePlural,
+        Suffix,
     }
 }

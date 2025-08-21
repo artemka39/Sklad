@@ -14,6 +14,7 @@ namespace Sklad.Api.Controllers
         {
             _clientService = clientService;
         }
+
         [HttpGet]
         public async Task<IActionResult> GetClients([FromQuery] CatalogEntityStateEnum? state)
         {
@@ -42,17 +43,10 @@ namespace Sklad.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpPost("delete")]
-        public async Task<IActionResult> DeleteMultipleClients([FromBody] int[] ids)
-        {
-            var response = await _clientService.DeleteMultipleClientsAsync(ids);
-            return StatusCode((int)response.StatusCode, response);
-        }
-
         [HttpPost("archive")]
-        public async Task<IActionResult> ArchiveMultipleClients([FromBody] Client[] clients)
+        public async Task<IActionResult> ArchiveClient([FromBody] Client client)
         {
-            var response = await _clientService.ArchiveMultipleClientsAsync(clients);
+            var response = await _clientService.ArchiveClientAsync(client);
             return StatusCode((int)response.StatusCode, response);
         }
     }

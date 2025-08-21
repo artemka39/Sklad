@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Sklad.Application.Interfaces;
+using Sklad.Application.Services;
 using Sklad.Domain.Enums;
 using Sklad.Domain.Models;
 
@@ -43,17 +44,10 @@ namespace Sklad.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpPost("delete")]
-        public async Task<IActionResult> DeleteMultipleResources([FromBody] int[] ids)
-        {
-            var response = await _resourceService.DeleteMultipleResourcesAsync(ids);
-            return StatusCode((int)response.StatusCode, response);
-        }
-
         [HttpPost("archive")]
-        public async Task<IActionResult> ArchiveMultipleResources([FromBody] Resource[] resources)
+        public async Task<IActionResult> ArchiveResource([FromBody] Resource resource)
         {
-            var response = await _resourceService.ArchiveMultipleResourcesAsync(resources);
+            var response = await _resourceService.ArchiveResourceAsync(resource);
             return StatusCode((int)response.StatusCode, response);
         }
     }

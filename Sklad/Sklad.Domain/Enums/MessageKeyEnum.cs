@@ -8,6 +8,8 @@ namespace Sklad.Domain.Enums
 {
     public enum MessageKeyEnum
     {
+        Loaded,
+        LoadingFailed,
         Created,
         NameRequired,
         AddressRequired,

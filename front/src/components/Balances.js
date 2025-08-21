@@ -11,8 +11,8 @@ export const Balances = () => {
   const fetchResourcesAndUnits = async () => {
     try {
       const [resourcesRes, unitsRes] = await Promise.all([
-        fetch('https://localhost:7024/api/catalog/resources'),
-        fetch('https://localhost:7024/api/catalog/units')
+        fetch('https://localhost:7024/api/resources'),
+        fetch('https://localhost:7024/api/units')
       ]);
 
       setResources(await resourcesRes.json());
@@ -83,7 +83,7 @@ export const Balances = () => {
           {balances.map((b, idx) => (
             <tr key={idx}>
               <td>{b.resource?.name}</td>
-              <td>{b.unitOfMeasurement?.name}</td>
+              <td>{b.unit?.name}</td>
               <td>{b.count}</td>
             </tr>
           ))}

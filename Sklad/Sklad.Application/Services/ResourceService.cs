@@ -30,7 +30,7 @@ namespace Sklad.Application.Services
         }
 
         public async Task<List<Resource>> GetResourcesAsync(CatalogEntityStateEnum? state) =>
-            await _dbContext.Resources.Where(r => !state.HasValue || r.State == state.Value).ToListAsync();
+            await _catalogService.GetCatalogEntitiesAsync(state, _dbContext.Resources);
 
         public async Task<OperationResult<Resource>> CreateResourceAsync(Resource resource) => 
             await _catalogService.CreateCatalogEntityAsync(resource, _dbContext.Resources);
@@ -78,24 +78,7 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> DeleteMultipleResourcesAsync(int[] resourceIds)
-        {
-            var resources = await _dbContext.Resources
-                .Where(r => resourceIds.Contains(r.Id))
-                .ToListAsync();
-            var notFoundCount = resourceIds.Length - resources.Count;
-            var inUseResources = resources
-                .Where(r =>
-                    _dbContext.ReceiptResources.Any(rr => rr.ResourceId == r.Id) ||
-                    _dbContext.ShipmentResources.Any(rs => rs.ResourceId == r.Id))
-                .ToList();
-            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Resources, inUseResources, resources, notFoundCount);
-        }
-
         public async Task<OperationResult> ArchiveResourceAsync(Resource resource) => 
             await _catalogService.ArchiveCatalogEntityAsync(resource, _dbContext.Resources);
-
-        public async Task<OperationResult> ArchiveMultipleResourcesAsync(Resource[] resources) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(resources, _dbContext.Resources);
     }
 }

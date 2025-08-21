@@ -30,7 +30,7 @@ namespace Sklad.Application.Services
         }
 
         public async Task<List<Unit>> GetUnitsAsync(CatalogEntityStateEnum? state) =>
-            await _dbContext.Units.Where(r => !state.HasValue || r.State == state.Value).ToListAsync();
+            await _catalogService.GetCatalogEntitiesAsync(state, _dbContext.Units);
 
         public async Task<OperationResult<Unit>> CreateUnitAsync(Unit unit) => 
             await _catalogService.CreateCatalogEntityAsync(unit, _dbContext.Units);
@@ -78,25 +78,7 @@ namespace Sklad.Application.Services
             }
         }
 
-        public async Task<OperationResult> DeleteMultipleUnitsAsync(int[] unitIds)
-        {
-            var units = await _dbContext.Units
-                .Where(u => unitIds.Contains(u.Id))
-                .ToListAsync();
-            var notFoundCount = unitIds.Length - units.Count;
-            var inUseUnits = units
-                .Where(u =>
-                    _dbContext.ReceiptResources.Any(r => r.UnitId == u.Id) ||
-                    _dbContext.ShipmentResources.Any(r => r.UnitId == u.Id))
-                .ToList();
-            return await _catalogService.DeleteMultipleEntitiesAsync(_dbContext.Units, inUseUnits, units, notFoundCount);
-        }
-
-
         public async Task<OperationResult> ArchiveUnitAsync(Unit unit) => 
             await _catalogService.ArchiveCatalogEntityAsync(unit, _dbContext.Units);
-
-        public async Task<OperationResult> ArchiveMultipleUnitsAsync(Unit[] units) =>
-            await _catalogService.ArchiveMultipleEntitiesAsync(units, _dbContext.Units);
     }
 }
