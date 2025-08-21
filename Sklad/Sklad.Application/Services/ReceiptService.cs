@@ -41,19 +41,25 @@ namespace Sklad.Application.Services
             if (filters != null)
             {
                 if (filters.DocumentNumbers?.Any() == true)
+                {
                     documents = documents.Where(d => filters.DocumentNumbers.Contains(d.Number));
-
+                }
                 if (filters.ResourceIds?.Any() == true)
+                {
                     documents = documents.Where(d => d.ReceiptResources.Any(or => filters.ResourceIds.Contains(or.ResourceId)));
-
+                }
                 if (filters.UnitIds?.Any() == true)
+                {
                     documents = documents.Where(d => d.ReceiptResources.Any(or => filters.UnitIds.Contains(or.UnitId)));
-
+                }
                 if (filters.FromDate.HasValue)
+                {
                     documents = documents.Where(d => d.Date >= filters.FromDate.Value);
-
+                }
                 if (filters.ToDate.HasValue)
+                {
                     documents = documents.Where(d => d.Date <= filters.ToDate.Value);
+                }
             }
             return await documents.ToListAsync();
         }

@@ -33,6 +33,7 @@ namespace Sklad.Application.Services
         public async Task<List<ShipmentDocument>> GetShipmentDocumentsAsync(DocumentFilterDto filters)
         {
             var documents = _dbContext.ShipmentDocuments
+                .Include(d => d.Client)
                 .Include(d => d.ShipmentResources)
                 .ThenInclude(r => r.Resource)
                 .Include(d => d.ShipmentResources)
@@ -231,7 +232,7 @@ namespace Sklad.Application.Services
                         Message = _messages[MessageKeyEnum.NotFound]
                     };
                 }
-                if (document.State != DocumentStateEnum.Signed)
+                if (document.State == DocumentStateEnum.Signed)
                 {
                     return new OperationResult<ShipmentDocument>
                     {
@@ -291,7 +292,7 @@ namespace Sklad.Application.Services
                         Message = _messages[MessageKeyEnum.NotFound]
                     };
                 }
-                if (document.State == DocumentStateEnum.Withdrawn)
+                if (document.State == DocumentStateEnum.NotSigned)
                 {
                     return new OperationResult<ShipmentDocument>
                     {
@@ -308,7 +309,7 @@ namespace Sklad.Application.Services
                         balance.Count += resource.Count;
                     }
                 }
-                document.State = DocumentStateEnum.Withdrawn;
+                document.State = DocumentStateEnum.NotSigned;
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return new OperationResult<ShipmentDocument>

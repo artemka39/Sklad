@@ -2,24 +2,31 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { ShipmentModal } from './ShipmentModal';
+import { DocumentFilters } from './DocumentFilters';
+import { DocumentStateEnum } from './DocumentStateEnum.js';
 
 export const Shipments = () => {
   const [documents, setDocuments] = useState([]);
   const [clients, setClients] = useState([]);
   const [resources, setResources] = useState([]);
   const [units, setUnits] = useState([]);
-  const [selectedClientId, setSelectedClientId] = useState('');
-  const [selectedResourceId, setSelectedResourceId] = useState('');
-  const [selectedUnitId, setSelectedUnitId] = useState('');
-  const [count, setCount] = useState('');
-  const [documentResources, setDocumentResources] = useState([]);
+
   const [filter, setFilter] = useState({});
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [documentResources, setDocumentResources] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
+
+  const [editDocId, setEditDocId] = useState(null);
+  const [editDocResources, setEditDocResources] = useState([]);
+  const [editClientId, setEditClientId] = useState('');
+  const [editDocumentState, setEditDocumentState] = useState(0);
 
   const fetchShipments = async () => {
     try {
-      const response = await axios.get('https://localhost:7024/api/shipments', { params: filter });
-      setDocuments(response.data);
-    } catch (error) {
+      const res = await axios.get('https://localhost:7024/api/shipments', { params: filter });
+      setDocuments(res.data);
+    } catch {
       toast.error('Ошибка загрузки отгрузок');
     }
   };
@@ -34,7 +41,7 @@ export const Shipments = () => {
       setClients(clientsRes.data.filter(c => c.state === 1));
       setResources(resourcesRes.data.filter(r => r.state === 1));
       setUnits(unitsRes.data.filter(u => u.state === 1));
-    } catch (error) {
+    } catch {
       toast.error('Ошибка загрузки справочников');
     }
   };
@@ -44,24 +51,22 @@ export const Shipments = () => {
     fetchCatalogs();
   }, []);
 
-  const handleAddResource = (e) => {
-    e.preventDefault();
-    if (!selectedResourceId || !selectedUnitId || !count) return;
-    const existing = documentResources.find(
-      r => r.resourceId === selectedResourceId && r.unitId === selectedUnitId
-    );
-    if (existing) {
-      toast.warn('Такая комбинация ресурса и единицы уже добавлена');
-      return;
-    }
-    setDocumentResources([...documentResources, {
-      resourceId: Number(selectedResourceId),
-      unitId: Number(selectedUnitId),
-      count: Number(count)
-    }]);
-    setSelectedResourceId('');
-    setSelectedUnitId('');
-    setCount('');
+  const openCreateModal = () => {
+    setSelectedClientId('');
+    setDocumentResources([]);
+    setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (doc) => {
+    setEditDocId(doc.id);
+    setEditClientId(doc.client?.id || '');
+    setEditDocumentState(doc.state);
+    setEditDocResources((doc.shipmentResources || []).map(r => ({
+      id: r.id,
+      resourceId: r.resource?.id,
+      unitId: r.unit?.id,
+      count: r.count
+    })));
   };
 
   const handleCreateDocument = async () => {
@@ -70,16 +75,30 @@ export const Shipments = () => {
       return;
     }
     try {
-      const response = await axios.post('https://localhost:7024/api/shipments', {
+      await axios.post('https://localhost:7024/api/shipments', {
         clientId: Number(selectedClientId),
         resources: documentResources
       });
-      toast.success('Документ отгрузки создан');
-      setSelectedClientId('');
-      setDocumentResources([]);
+      toast.success('Документ создан');
+      setIsCreateModalOpen(false);
       fetchShipments();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Ошибка создания документа');
+    }
+  };
+
+  const handleUpdateDocument = async () => {
+    try {
+      await axios.put('https://localhost:7024/api/shipments', {
+        documentId: editDocId,
+        clientId: editClientId,
+        resources: editDocResources
+      });
+      toast.success('Документ обновлён');
+      setEditDocId(null);
+      fetchShipments();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Ошибка обновления');
     }
   };
 
@@ -88,63 +107,89 @@ export const Shipments = () => {
       await axios.delete(`https://localhost:7024/api/shipments/${id}`);
       toast.success('Документ удалён');
       fetchShipments();
-    } catch (error) {
-      toast.error('Ошибка удаления документа');
+    } catch {
+      toast.error('Ошибка удаления');
     }
   };
 
-  // ...можно добавить методы для Update, Sign, Withdraw
+  const handleSignDocument = async (id) => {
+    try {
+      await axios.patch(`https://localhost:7024/api/shipments/sing/${id}`);
+      toast.success('Документ подписан');
+      fetchShipments();
+    } catch {
+      toast.error('Ошибка подписания');
+    }
+  };
+
+  const handleWithdrawDocument = async (id) => {
+    try {
+      await axios.patch(`https://localhost:7024/api/shipments/withdraw/${id}`);
+      toast.success('Документ отозван');
+      fetchShipments();
+    } catch {
+      toast.error('Ошибка отзыва');
+    }
+  };
+
   return (
     <div>
       <h2>Документы отгрузки</h2>
+      <button onClick={openCreateModal} style={{ marginBottom: 20 }}>Создать документ</button>
+      <DocumentFilters
+        filtersConfig={[
+          { name: "Клиенты", options: clients, key: "ClientIds" },
+          { name: "Ресурсы", options: resources, key: "ResourceIds" },
+          { name: "Единицы", options: units, key: "UnitIds" },
+          { name: "Номера документов", options: documents, key: "DocumentNumbers" }
+        ]}
+        onFilterChange={setFilter}
+      />
+      
+      <ShipmentModal
+        title="Создать документ отгрузки"
+        isOpen={isCreateModalOpen}
+        clients={clients}
+        selectedClientId={selectedClientId}
+        onClientChange={setSelectedClientId}
+        items={documentResources}
+        resources={resources}
+        units={units}
+        onChange={(i, f, v) => {
+          const updated = [...documentResources];
+          updated[i][f] = v;
+          setDocumentResources(updated);
+        }}
+        onRemove={(i) => setDocumentResources(documentResources.filter((_, idx) => idx !== i))}
+        onAddRow={() => setDocumentResources([...documentResources, { resourceId: '', unitId: '', count: '' }])}
+        onSave={handleCreateDocument}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
 
-      <div style={{ marginBottom: '20px' }}>
-        <h4>Создать документ отгрузки</h4>
-        <select value={selectedClientId} onChange={e => setSelectedClientId(e.target.value)}>
-          <option value="">Выберите клиента</option>
-          {clients.map(c => (
-            <option key={c.id} value={c.id}>{c.name} ({c.address})</option>
-          ))}
-        </select>
-        <form onSubmit={handleAddResource} style={{ display: 'inline-block', marginLeft: '20px' }}>
-          <select value={selectedResourceId} onChange={e => setSelectedResourceId(e.target.value)}>
-            <option value="">Ресурс</option>
-            {resources.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <select value={selectedUnitId} onChange={e => setSelectedUnitId(e.target.value)}>
-            <option value="">Единица</option>
-            {units.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="1"
-            value={count}
-            onChange={e => setCount(e.target.value)}
-            placeholder="Количество"
-          />
-          <button type="submit">Добавить позицию</button>
-        </form>
-        {documentResources.length > 0 && (
-          <div style={{ marginTop: '10px' }}>
-            <ul>
-              {documentResources.map((r, idx) => {
-                const resName = resources.find(x => x.id === r.resourceId)?.name;
-                const unitName = units.find(x => x.id === r.unitId)?.name;
-                return (
-                  <li key={idx}>{resName} — {r.count} {unitName}</li>
-                );
-              })}
-            </ul>
-            <button onClick={handleCreateDocument}>Создать документ</button>
-          </div>
-        )}
-      </div>
+      <ShipmentModal
+        title={`Редактировать документ #${editDocId}`}
+        isOpen={editDocId !== null}
+        clients={clients}
+        selectedClientId={editClientId}
+        onClientChange={setEditClientId}
+        items={editDocResources}
+        resources={resources}
+        units={units}
+        onChange={(i, f, v) => {
+          const updated = [...editDocResources];
+          updated[i][f] = v;
+          setEditDocResources(updated);
+        }}
+        onRemove={(i) => setEditDocResources(editDocResources.filter((_, idx) => idx !== i))}
+        onAddRow={() => setEditDocResources([...editDocResources, { resourceId: '', unitId: '', count: '' }])}
+        onSave={handleUpdateDocument}
+        onClose={() => setEditDocId(null)}
+        onDelete={() => handleDeleteDocument(editDocId)}
+        onSign={() => handleSignDocument(editDocId)}
+        onWithdraw={() => handleWithdrawDocument(editDocId)}
+        documentState={editDocumentState}
+      />
 
-      <h3>Список документов отгрузки</h3>
       <table border="1" cellPadding="8">
         <thead>
           <tr>
@@ -152,36 +197,43 @@ export const Shipments = () => {
             <th>Дата</th>
             <th>Клиент</th>
             <th>Состояние</th>
-            <th>Ресурсы</th>
-            <th></th>
+            <th>Ресурс</th>
+            <th>Единица</th>
+            <th>Количество</th>
           </tr>
         </thead>
         <tbody>
-          {documents.map(doc => (
-            <tr key={doc.id}>
-              <td>{doc.number}</td>
-              <td>{new Date(doc.date).toLocaleDateString()}</td>
-              <td>{doc.client?.name} ({doc.client?.address})</td>
-              <td>{doc.state}</td>
-              <td>
-                <ul>
-                  {(doc.shipmentResources || []).map(res => (
-                    <li key={res.id}>
-                      {res.resource?.name} — {res.count} {res.unit?.name}
-                    </li>
-                  ))}
-                </ul>
-              </td>
-              <td>
-                <button onClick={() => handleDeleteDocument(doc.id)}>Удалить</button>
-                {/* Можно добавить кнопки для Sign/Withdraw/Update */}
-              </td>
-            </tr>
-          ))}
+          {documents.flatMap(doc =>
+          (doc.shipmentResources?.length > 0
+            ? doc.shipmentResources.map((res, idx) => (
+              <tr key={doc.id + '-' + res.id} onDoubleClick={() => openEditModal(doc)}>
+                {idx === 0 && (
+                  <>
+                    <td rowSpan={doc.shipmentResources.length}>{doc.number}</td>
+                    <td rowSpan={doc.shipmentResources.length}>{new Date(doc.date).toLocaleDateString()}</td>
+                    <td rowSpan={doc.shipmentResources.length}>{doc.client?.name}</td>
+                    <td rowSpan={doc.shipmentResources.length}>{DocumentStateEnum.labels[doc.state]}</td>
+                  </>
+                )}
+                <td>{res.resource?.name}</td>
+                <td>{res.unit?.name}</td>
+                <td>{res.count}</td>
+              </tr>
+            ))
+            : [
+              <tr key={doc.id} onDoubleClick={() => openEditModal(doc)}>
+                <td>{doc.number}</td>
+                <td>{new Date(doc.date).toLocaleDateString()}</td>
+                <td>{doc.client?.name}</td>
+                <td>{DocumentStateEnum.labels[doc.state]}</td>
+                <td colSpan={3} style={{ textAlign: 'center', fontStyle: 'italic' }}>Нет ресурсов</td>
+              </tr>
+            ])
+          )}
         </tbody>
       </table>
 
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
     </div>
   );
-}
+};

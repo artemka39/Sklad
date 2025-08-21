@@ -10,6 +10,5 @@ namespace Sklad.Domain.Enums
     {
         NotSigned = 0,
         Signed = 1,
-        Withdrawn = 2,
     }
 }

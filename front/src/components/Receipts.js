@@ -3,27 +3,26 @@ import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ReceiptModal } from "./ReceiptModal";
+import { DocumentFilters } from "./DocumentFilters";
 
 export const Receipts = () => {
   const [documents, setDocuments] = useState([]);
   const [resources, setResources] = useState([]);
   const [units, setUnits] = useState([]);
 
+  const [filters, setFilter] = useState({
+    FromDate: null,
+    ToDate: null,
+    ResourceIds: [],
+    UnitIds: [],
+    DocumentNumbers: []
+  });
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [documentResources, setDocumentResources] = useState([]);
-
   const [editDocId, setEditDocId] = useState(null);
   const [editDocNumber, setEditDocNumber] = useState("");
   const [editDocResources, setEditDocResources] = useState([]);
-
-  const fetchReceipts = async () => {
-    try {
-      const response = await axios.get("https://localhost:7024/api/receipts");
-      setDocuments(response.data);
-    } catch {
-      toast.error("Ошибка загрузки поступлений");
-    }
-  };
 
   const fetchCatalogs = async () => {
     try {
@@ -38,10 +37,34 @@ export const Receipts = () => {
     }
   };
 
+  const fetchReceipts = async () => {
+    try {
+      const response = await axios.get("https://localhost:7024/api/receipts", {
+        params: filters,
+        paramsSerializer: params => {
+          return Object.entries(params)
+            .map(([key, value]) =>
+              Array.isArray(value)
+                ? value.map(v => `${key}=${v}`).join("&")
+                : value !== null ? `${key}=${value}` : ""
+            )
+            .filter(Boolean)
+            .join("&");
+        }
+      });
+      setDocuments(response.data);
+    } catch {
+      toast.error("Ошибка загрузки поступлений");
+    }
+  };
+
   useEffect(() => {
-    fetchReceipts();
     fetchCatalogs();
   }, []);
+
+  useEffect(() => {
+    fetchReceipts();
+  }, [filters]);
 
   const handleCreateDocument = async () => {
     try {
@@ -109,9 +132,15 @@ export const Receipts = () => {
   return (
     <div>
       <h2>Документы поступления</h2>
-      <button onClick={openCreateModal} style={{ marginBottom: 20 }}>
-        Создать документ
-      </button>
+
+<DocumentFilters
+  filtersConfig={[
+    { name: "Ресурсы", options: resources, key: "ResourceIds" },
+    { name: "Единицы", options: units, key: "UnitIds" },
+    { name: "Номера документов", options: documents, key: "DocumentNumbers" }
+  ]}
+  onFilterChange={setFilter}
+/>
 
       <ReceiptModal
         title="Создать документ поступления"
@@ -147,6 +176,10 @@ export const Receipts = () => {
         onClose={closeEditModal}
         onDelete={() => handleDeleteDocument(editDocId)}
       />
+
+      <button onClick={openCreateModal} style={{ marginBottom: 20 }}>
+        Создать документ
+      </button>
 
       <table border="1" cellPadding="8">
         <thead>

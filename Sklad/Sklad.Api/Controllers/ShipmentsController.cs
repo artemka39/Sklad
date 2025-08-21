@@ -19,8 +19,8 @@ namespace Sklad.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetShipmentDocuments([FromQuery] DocumentFilterDto filters)
         {
-            var ShipmentDocuments = await _shipmentService.GetShipmentDocumentsAsync(filters);
-            return Ok(ShipmentDocuments);
+            var shipmentDocuments = await _shipmentService.GetShipmentDocumentsAsync(filters);
+            return Ok(shipmentDocuments);
         }
 
         [HttpPost]
