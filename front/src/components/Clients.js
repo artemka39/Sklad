@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { config } from '../config';
 import { useCrud } from '../hooks/useCrud';
 import { ModalCatalogEntity } from '../components/ModalCatalogEntity';
 import { CatalogEntityList } from '../components/CatalogEntityList';
@@ -7,19 +8,24 @@ import 'react-toastify/dist/ReactToastify.css';
 
 export const Clients = () => {
   const { items, fetchItems, addItem, updateItem, deleteItem, archiveItem } =
-    useCrud('https://localhost:7024/api/clients');
+    useCrud(`${config.apiBaseUrl}/clients`);
 
-  const [isModalCatalogEntityOpen, setIsModalCatalogEntityOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [form, setForm] = useState({ id: null, name: '', address: '', state: 1 });
+  const [filterState, setFilterState] = useState('');
 
   const stateLabels = { 0: 'В архиве', 1: 'Активен' };
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchItems({ state: filterState }); }, [filterState]);
+
+  useEffect(() => {
+    document.title = "Sklad — Клиенты";
+  }, []);
 
   const handleAdd = () => {
     addItem({ name: form.name, address: form.address });
-    setIsModalCatalogEntityOpen(false);
+    setIsModalOpen(false);
     setForm({ id: null, name: '', address: '', state: 1 });
   };
 
@@ -34,13 +40,16 @@ export const Clients = () => {
       <CatalogEntityList
         title="Клиенты"
         stateLabels={stateLabels}
-        onAddClick={() => setIsModalCatalogEntityOpen(true)}
+        onAddClick={() => setIsModalOpen(true)}
         onRowDoubleClick={(client) => { setForm(client); setIsEditOpen(true); }}
         items={items}
+        filterState={filterState}
+        onFilterChange={setFilterState}
+        onApplyFilter={() => fetchItems({ state: filterState })}
       />
 
-      {isModalCatalogEntityOpen && (
-        <ModalCatalogEntity title="Добавить клиента" onClose={() => setIsModalCatalogEntityOpen(false)}>
+      {isModalOpen && (
+        <ModalCatalogEntity title="Добавить клиента" onClose={() => setIsModalOpen(false)}>
           <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Имя" />
           <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Адрес" />
           <button onClick={handleAdd}>Сохранить</button>

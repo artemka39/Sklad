@@ -1,4 +1,6 @@
+import axios from 'axios';
 import React, { useState, useEffect, useCallback } from 'react';
+import { config } from '../config';
 
 export const Balances = () => {
   const [balances, setBalances] = useState([]);
@@ -11,8 +13,8 @@ export const Balances = () => {
   const fetchResourcesAndUnits = async () => {
     try {
       const [resourcesRes, unitsRes] = await Promise.all([
-        fetch('https://localhost:7024/api/resources'),
-        fetch('https://localhost:7024/api/units')
+        fetch(`${config.apiBaseUrl}/resources`),
+        fetch(`${config.apiBaseUrl}/units`)
       ]);
 
       setResources(await resourcesRes.json());
@@ -28,9 +30,8 @@ export const Balances = () => {
       if (selectedResourceId) params.append('resourceId', selectedResourceId);
       if (selectedUnitId) params.append('unitId', selectedUnitId);
 
-      const response = await fetch(`https://localhost:7024/api/storage/balance?${params}`);
-      const data = await response.json();
-      setBalances(data);
+      const response = await axios.get(`${config.apiBaseUrl}/storage/balance?${params}`);
+      setBalances(response.data);
     } catch (error) {
       console.error('Ошибка загрузки баланса:', error);
     }
@@ -44,6 +45,10 @@ export const Balances = () => {
   useEffect(() => {
     fetchBalances();
   }, [fetchBalances]);
+
+  useEffect(() => {
+    document.title = "Sklad — Баланс";
+  }, []);
 
   return (
     <div>

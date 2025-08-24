@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { config } from "../config";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -27,8 +28,8 @@ export const Receipts = () => {
   const fetchCatalogs = async () => {
     try {
       const [resourcesRes, unitsRes] = await Promise.all([
-        axios.get("https://localhost:7024/api/resources"),
-        axios.get("https://localhost:7024/api/units"),
+        axios.get(`${config.apiBaseUrl}/resources`),
+        axios.get(`${config.apiBaseUrl}/units`),
       ]);
       setResources(resourcesRes.data.filter(r => r.state === 1));
       setUnits(unitsRes.data.filter(u => u.state === 1));
@@ -39,7 +40,7 @@ export const Receipts = () => {
 
   const fetchReceipts = async () => {
     try {
-      const response = await axios.get("https://localhost:7024/api/receipts", {
+      const response = await axios.get(`${config.apiBaseUrl}/receipts`, {
         params: filters,
         paramsSerializer: params => {
           return Object.entries(params)
@@ -66,9 +67,13 @@ export const Receipts = () => {
     fetchReceipts();
   }, [filters]);
 
+  useEffect(() => {
+    document.title = "Sklad — Поступления";
+  }, []);
+
   const handleCreateDocument = async () => {
     try {
-      await axios.post("https://localhost:7024/api/receipts", {
+      await axios.post(`${config.apiBaseUrl}/receipts`, {
         resources: documentResources,
       });
       toast.success("Документ поступления создан");
@@ -82,7 +87,7 @@ export const Receipts = () => {
 
   const handleUpdateDocument = async () => {
     try {
-      await axios.put("https://localhost:7024/api/receipts", {
+      await axios.put(`${config.apiBaseUrl}/receipts`, {
         documentId: editDocId,
         resources: editDocResources,
       });
@@ -96,7 +101,7 @@ export const Receipts = () => {
 
   const handleDeleteDocument = async (id) => {
     try {
-      await axios.delete(`https://localhost:7024/api/receipts/${id}`);
+      await axios.delete(`${config.apiBaseUrl}/receipts/${id}`);
       toast.success("Документ удалён");
       closeEditModal();
       fetchReceipts();
@@ -133,14 +138,14 @@ export const Receipts = () => {
     <div>
       <h2>Документы поступления</h2>
 
-<DocumentFilters
-  filtersConfig={[
-    { name: "Ресурсы", options: resources, key: "ResourceIds" },
-    { name: "Единицы", options: units, key: "UnitIds" },
-    { name: "Номера документов", options: documents, key: "DocumentNumbers" }
-  ]}
-  onFilterChange={setFilter}
-/>
+      <DocumentFilters
+        filtersConfig={[
+          { name: "Ресурсы", options: resources, key: "ResourceIds" },
+          { name: "Единицы", options: units, key: "UnitIds" },
+          { name: "Номера документов", options: documents, key: "DocumentNumbers" }
+        ]}
+        onFilterChange={setFilter}
+      />
 
       <ReceiptModal
         title="Создать документ поступления"
@@ -193,31 +198,31 @@ export const Receipts = () => {
         </thead>
         <tbody>
           {documents.flatMap(doc =>
-            (doc.receiptResources?.length > 0
-              ? doc.receiptResources.map((res, idx) => (
-                  <tr key={doc.id + "-" + res.id} onDoubleClick={() => openEditModal(doc)}>
-                    {idx === 0 && (
-                      <>
-                        <td rowSpan={doc.receiptResources.length}>{doc.number}</td>
-                        <td rowSpan={doc.receiptResources.length}>
-                          {new Date(doc.date).toLocaleDateString()}
-                        </td>
-                      </>
-                    )}
-                    <td>{res.resource?.name}</td>
-                    <td>{res.unit?.name}</td>
-                    <td>{res.count}</td>
-                  </tr>
-                ))
-              : [
-                  <tr key={doc.id} onDoubleClick={() => openEditModal(doc)}>
-                    <td>{doc.number}</td>
-                    <td>{new Date(doc.date).toLocaleDateString()}</td>
-                    <td colSpan={3} style={{ textAlign: "center", fontStyle: "italic" }}>
-                      Нет ресурсов
+          (doc.receiptResources?.length > 0
+            ? doc.receiptResources.map((res, idx) => (
+              <tr key={doc.id + "-" + res.id} onDoubleClick={() => openEditModal(doc)}>
+                {idx === 0 && (
+                  <>
+                    <td rowSpan={doc.receiptResources.length}>{doc.number}</td>
+                    <td rowSpan={doc.receiptResources.length}>
+                      {new Date(doc.date).toLocaleDateString()}
                     </td>
-                  </tr>,
-                ])
+                  </>
+                )}
+                <td>{res.resource?.name}</td>
+                <td>{res.unit?.name}</td>
+                <td>{res.count}</td>
+              </tr>
+            ))
+            : [
+              <tr key={doc.id} onDoubleClick={() => openEditModal(doc)}>
+                <td>{doc.number}</td>
+                <td>{new Date(doc.date).toLocaleDateString()}</td>
+                <td colSpan={3} style={{ textAlign: "center", fontStyle: "italic" }}>
+                  Нет ресурсов
+                </td>
+              </tr>,
+            ])
           )}
         </tbody>
       </table>

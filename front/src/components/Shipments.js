@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { config } from '../config';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -24,7 +25,7 @@ export const Shipments = () => {
 
   const fetchShipments = async () => {
     try {
-      const res = await axios.get('https://localhost:7024/api/shipments', { params: filter });
+      const res = await axios.get(`${config.apiBaseUrl}/shipments`, { params: filter });
       setDocuments(res.data);
     } catch {
       toast.error('Ошибка загрузки отгрузок');
@@ -34,9 +35,9 @@ export const Shipments = () => {
   const fetchCatalogs = async () => {
     try {
       const [clientsRes, resourcesRes, unitsRes] = await Promise.all([
-        axios.get('https://localhost:7024/api/clients'),
-        axios.get('https://localhost:7024/api/resources'),
-        axios.get('https://localhost:7024/api/units')
+        axios.get(`${config.apiBaseUrl}/clients`),
+        axios.get(`${config.apiBaseUrl}/resources`),
+        axios.get(`${config.apiBaseUrl}/units`)
       ]);
       setClients(clientsRes.data.filter(c => c.state === 1));
       setResources(resourcesRes.data.filter(r => r.state === 1));
@@ -49,6 +50,10 @@ export const Shipments = () => {
   useEffect(() => {
     fetchShipments();
     fetchCatalogs();
+  }, []);
+
+  useEffect(() => {
+    document.title = "Sklad — Отгрузки";
   }, []);
 
   const openCreateModal = () => {
@@ -75,7 +80,7 @@ export const Shipments = () => {
       return;
     }
     try {
-      await axios.post('https://localhost:7024/api/shipments', {
+      await axios.post(`${config.apiBaseUrl}/shipments`, {
         clientId: Number(selectedClientId),
         resources: documentResources
       });
@@ -89,7 +94,7 @@ export const Shipments = () => {
 
   const handleUpdateDocument = async () => {
     try {
-      await axios.put('https://localhost:7024/api/shipments', {
+      await axios.put(`${config.apiBaseUrl}/shipments`, {
         documentId: editDocId,
         clientId: editClientId,
         resources: editDocResources
@@ -104,7 +109,7 @@ export const Shipments = () => {
 
   const handleDeleteDocument = async (id) => {
     try {
-      await axios.delete(`https://localhost:7024/api/shipments/${id}`);
+      await axios.delete(`${config.apiBaseUrl}/shipments/${id}`);
       toast.success('Документ удалён');
       fetchShipments();
     } catch {
@@ -114,7 +119,7 @@ export const Shipments = () => {
 
   const handleSignDocument = async (id) => {
     try {
-      await axios.patch(`https://localhost:7024/api/shipments/sing/${id}`);
+      await axios.patch(`${config.apiBaseUrl}/shipments/sing/${id}`);
       toast.success('Документ подписан');
       fetchShipments();
     } catch {
@@ -124,7 +129,7 @@ export const Shipments = () => {
 
   const handleWithdrawDocument = async (id) => {
     try {
-      await axios.patch(`https://localhost:7024/api/shipments/withdraw/${id}`);
+      await axios.patch(`${config.apiBaseUrl}/shipments/withdraw/${id}`);
       toast.success('Документ отозван');
       fetchShipments();
     } catch {
