@@ -55,16 +55,16 @@ namespace Sklad.Application.Services
             where TEntity : class, ICatalogEntity
         {
             var messages = GetMessages<TEntity>();
+            if (string.IsNullOrWhiteSpace(entity.Name))
+            {
+                return new OperationResult<TEntity>
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Message = messages[MessageKeyEnum.NameRequired]
+                };
+            }
             try
             {
-                if (string.IsNullOrWhiteSpace(entity.Name))
-                {
-                    return new OperationResult<TEntity>
-                    {
-                        StatusCode = HttpStatusCode.BadRequest,
-                        Message = messages[MessageKeyEnum.NameRequired]
-                    };
-                }
                 var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
                 if (existingEntity == null)
                 {
@@ -113,14 +113,26 @@ namespace Sklad.Application.Services
             }
             try
             {
-                dbSet.Update(entity);
-                await _dbContext.SaveChangesAsync();
-                return new OperationResult<TEntity>
+                var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Id != entity.Id && e.Name == entity.Name);
+                if (existingEntity == null)
                 {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = entity,
-                    Message = messages[MessageKeyEnum.Updated]
-                };
+                    dbSet.Update(entity);
+                    await _dbContext.SaveChangesAsync();
+                    return new OperationResult<TEntity>
+                    {
+                        StatusCode = HttpStatusCode.OK,
+                        Data = entity,
+                        Message = messages[MessageKeyEnum.Updated]
+                    };
+                }
+                else
+                {
+                    return new OperationResult<TEntity>
+                    {
+                        StatusCode = HttpStatusCode.Conflict,
+                        Message = messages[MessageKeyEnum.AlreadyExists]
+                    };
+                }
             }
             catch (Exception ex)
             {
@@ -182,6 +194,14 @@ namespace Sklad.Application.Services
                 var existingEntity = await dbSet.FirstOrDefaultAsync(e => e.Name == entity.Name);
                 if (existingEntity != null)
                 {
+                    if (existingEntity.State == CatalogEntityStateEnum.Archived)
+                    {
+                        return new OperationResult
+                        {
+                            StatusCode = HttpStatusCode.BadRequest,
+                            Message = messages[MessageKeyEnum.AlreadyArchived]
+                        };
+                    }
                     existingEntity.State = CatalogEntityStateEnum.Archived;
                     await _dbContext.SaveChangesAsync();
                     return new OperationResult

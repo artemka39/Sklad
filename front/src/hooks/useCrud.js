@@ -11,6 +11,7 @@ export const useCrud = (baseUrl) => {
       setItems(res.data);
     } catch {
       toast.error('Ошибка загрузки данных');
+      throw new Error('Ошибка загрузки данных');
     }
   };
 
@@ -18,9 +19,12 @@ export const useCrud = (baseUrl) => {
     try {
       const res = await axios.post(baseUrl, data);
       toast.success(res.data.message || 'Элемент добавлен');
-      fetchItems();
+      await fetchItems();
+      return res.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Ошибка добавления');
+      const msg = err.response?.data?.message || 'Ошибка добавления';
+      toast.error(msg);
+      throw new Error(msg);
     }
   };
 
@@ -28,9 +32,12 @@ export const useCrud = (baseUrl) => {
     try {
       const res = await axios.put(baseUrl, data);
       toast.success(res.data.message || 'Элемент обновлён');
-      fetchItems();
+      await fetchItems();
+      return res.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Ошибка обновления');
+      const msg = err.response?.data?.message || 'Ошибка обновления';
+      toast.error(msg);
+      throw new Error(msg);
     }
   };
 
@@ -38,9 +45,12 @@ export const useCrud = (baseUrl) => {
     try {
       const res = await axios.delete(`${baseUrl}/${id}`);
       toast.success(res.data.message || 'Элемент удалён');
-      fetchItems();
+      await fetchItems();
+      return res.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Ошибка удаления');
+      const msg = err.response?.data?.message || 'Ошибка удаления';
+      toast.error(msg);
+      throw new Error(msg);
     }
   };
 
@@ -48,9 +58,12 @@ export const useCrud = (baseUrl) => {
     try {
       const res = await axios.post(`${baseUrl}/archive`, data);
       toast.success(res.data.message || 'Элемент архивирован');
-      fetchItems();
+      await fetchItems();
+      return res.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Ошибка архивирования');
+      const msg = err.response?.data?.message || 'Ошибка архивирования';
+      toast.error(msg);
+      throw new Error(msg);
     }
   };
 

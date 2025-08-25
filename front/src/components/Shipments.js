@@ -75,8 +75,12 @@ export const Shipments = () => {
   };
 
   const handleCreateDocument = async () => {
-    if (!selectedClientId || !documentResources.length) {
-      toast.warn('Выберите клиента и добавьте хотя бы одну позицию');
+    if (!selectedClientId) {
+      toast.warn('Выберите клиента');
+      return;
+    }
+    if (!documentResources.length) {
+      toast.warn('Добавьте хотя бы одну позицию');
       return;
     }
     try {
@@ -102,6 +106,7 @@ export const Shipments = () => {
       toast.success('Документ обновлён');
       setEditDocId(null);
       fetchShipments();
+      setIsCreateModalOpen(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Ошибка обновления');
     }
@@ -112,8 +117,9 @@ export const Shipments = () => {
       await axios.delete(`${config.apiBaseUrl}/shipments/${id}`);
       toast.success('Документ удалён');
       fetchShipments();
-    } catch {
-      toast.error('Ошибка удаления');
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Ошибка удаления');
     }
   };
 
@@ -122,8 +128,9 @@ export const Shipments = () => {
       await axios.patch(`${config.apiBaseUrl}/shipments/sing/${id}`);
       toast.success('Документ подписан');
       fetchShipments();
-    } catch {
-      toast.error('Ошибка подписания');
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Ошибка подписания');
     }
   };
 
@@ -132,8 +139,9 @@ export const Shipments = () => {
       await axios.patch(`${config.apiBaseUrl}/shipments/withdraw/${id}`);
       toast.success('Документ отозван');
       fetchShipments();
-    } catch {
-      toast.error('Ошибка отзыва');
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Ошибка отзыва');
     }
   };
 

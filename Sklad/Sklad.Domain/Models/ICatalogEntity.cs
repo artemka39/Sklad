@@ -9,6 +9,7 @@ namespace Sklad.Domain.Models
 {
     public interface ICatalogEntity
     {
+        public int Id { get; set; }
         public string Name { get; set; }
         public CatalogEntityStateEnum State { get; set; }
     }

@@ -1,14 +1,56 @@
-export const ModalCatalogEntity = ({ title, children, onClose }) => (
-  <div style={{
-    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-    background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-  }}>
-    <div style={{ background: '#fff', padding: 30, borderRadius: 8, minWidth: 300 }}>
-      <h3>{title}</h3>
-      {children}
-      <div style={{ textAlign: 'right', marginTop: 10 }}>
-        <button onClick={onClose}>Закрыть</button>
-      </div>
-    </div>
-  </div>
-);
+import React from 'react';
+import { Modal, Button, Form } from 'react-bootstrap';
+
+const fieldLabels = {
+  name: 'Имя',
+  address: 'Адрес',
+};
+
+export const ModalCatalogEntity = ({
+  show,
+  onClose,
+  title,
+  form,
+  setForm,
+  onSave,
+  onDelete,
+  onArchive,
+}) => {
+  const isEdit = !!onDelete || !!onArchive;
+
+  return (
+    <Modal show={show} onHide={onClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>{title}</Modal.Title>
+      </Modal.Header>
+
+      <Modal.Body>
+        {Object.keys(form).map((key) => {
+          if (key === 'id' || key === 'state') return null;
+          return (
+            <Form.Group className="mb-3" key={key}>
+              <Form.Label>{fieldLabels[key] || key}</Form.Label>
+              <Form.Control
+                value={form[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                placeholder={`Введите ${fieldLabels[key] || key}`}
+              />
+            </Form.Group>
+          );
+        })}
+      </Modal.Body>
+
+      <Modal.Footer className="d-flex justify-content-between">
+        {isEdit && (
+          <div>
+            {onDelete && <Button variant="danger" onClick={onDelete} className="me-2">Удалить</Button>}
+            {onArchive && <Button variant="warning" onClick={onArchive}>В архив</Button>}
+          </div>
+        )}
+        <Button variant="primary" onClick={onSave}>
+          {isEdit ? 'Сохранить' : 'Добавить'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
